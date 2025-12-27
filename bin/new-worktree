@@ -1,0 +1,118 @@
+#!/bin/bash
+# Creates a new git worktree for agentic development
+#
+# Usage:
+#   new-worktree docs-ai/tasks/TODO-observability-baseline-emitter.md
+#   new-worktree --branch feat/my-feature
+#   new-worktree docs-ai/tasks/TODO-foo.md --from develop
+
+set -e
+
+# Defaults
+REPO_ROOT="$HOME/projects/budgeat"
+WORKTREES_DIR="$HOME/projects/budgeat.worktrees"
+BASE_BRANCH="main"
+BRANCH_NAME=""
+TASK_FILE=""
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --branch|-b)
+            BRANCH_NAME="$2"
+            shift 2
+            ;;
+        --from|-f)
+            BASE_BRANCH="$2"
+            shift 2
+            ;;
+        --help|-h)
+            echo "Usage: new-worktree [TASK_FILE] [OPTIONS]"
+            echo ""
+            echo "Arguments:"
+            echo "  TASK_FILE    Path to task file (e.g., docs-ai/tasks/TODO-foo.md)"
+            echo "               Branch name is derived from filename"
+            echo ""
+            echo "Options:"
+            echo "  --branch, -b NAME   Explicit branch name (overrides task file derivation)"
+            echo "  --from, -f BRANCH   Base branch to create from (default: main)"
+            echo "  --help, -h          Show this help"
+            exit 0
+            ;;
+        *)
+            # Assume it's a task file path
+            TASK_FILE="$1"
+            shift
+            ;;
+    esac
+done
+
+# Derive branch name from task file if not explicitly provided
+if [[ -z "$BRANCH_NAME" ]]; then
+    if [[ -z "$TASK_FILE" ]]; then
+        echo "Error: Provide a task file or --branch name"
+        echo "Usage: new-worktree docs-ai/tasks/TODO-foo.md"
+        exit 1
+    fi
+
+    # Extract filename without path and extension
+    # e.g., docs-ai/tasks/TODO-observability-baseline-emitter.md -> TODO-observability-baseline-emitter
+    filename=$(basename "$TASK_FILE" .md)
+
+    # Remove TODO- prefix and convert to branch name
+    # e.g., TODO-observability-baseline-emitter -> feat/observability-baseline-emitter
+    branch_suffix="${filename#TODO-}"
+    BRANCH_NAME="feat/$branch_suffix"
+fi
+
+# Create directory name from branch (replace / with -)
+dir_name="${BRANCH_NAME//\//-}"
+WORKTREE_PATH="$WORKTREES_DIR/$dir_name"
+
+echo "==> Creating worktree"
+echo "    Branch: $BRANCH_NAME"
+echo "    From: $BASE_BRANCH"
+echo "    Path: $WORKTREE_PATH"
+echo ""
+
+# Ensure worktrees directory exists
+mkdir -p "$WORKTREES_DIR"
+
+# Create the worktree
+cd "$REPO_ROOT"
+git fetch origin "$BASE_BRANCH"
+git worktree add --no-track -b "$BRANCH_NAME" "$WORKTREE_PATH" "origin/$BASE_BRANCH"
+
+echo ""
+echo "==> Copying gitignored files"
+
+# Copy .env if it exists
+if [[ -f "$REPO_ROOT/.env" ]]; then
+    cp "$REPO_ROOT/.env" "$WORKTREE_PATH/.env"
+    echo "    Copied .env"
+fi
+
+# Copy models directory if it exists
+if [[ -d "$REPO_ROOT/models" ]]; then
+    mkdir -p "$WORKTREE_PATH/models"
+    cp -r "$REPO_ROOT/models/"* "$WORKTREE_PATH/models/" 2>/dev/null || true
+    echo "    Copied models/"
+fi
+
+echo ""
+echo "==> Opening VS Code"
+code "$WORKTREE_PATH/budgeat.code-workspace"
+
+echo ""
+echo "==> Running setup in new terminal (uv sync && just q)"
+WIN_PATH=$(wslpath -w "$WORKTREE_PATH")
+wt.exe -w 0 new-tab -p "Ubuntu" -d "$WIN_PATH" --title "Setup: $dir_name" wsl.exe -d Ubuntu -- bash -ic "cd '$WORKTREE_PATH' && uv sync && just q"
+
+echo ""
+echo "✓ Worktree created at: $WORKTREE_PATH"
+echo "  Setup running in new terminal tab"
+if [[ -n "$TASK_FILE" ]]; then
+    echo ""
+    echo "Task file reference for your agent:"
+    echo "  @$TASK_FILE"
+fi

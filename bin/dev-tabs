@@ -1,0 +1,25 @@
+#!/bin/bash
+# Opens 3 WSL Ubuntu tabs in Windows Terminal for dev workflow
+#
+# Usage:
+#   dev-tabs              # Uses current dir if it's a git repo, otherwise default
+#   dev-tabs ~/projects   # Opens tabs in specified directory
+
+DEFAULT_DIR="$HOME/projects/budgeat"
+
+# Use argument if provided, otherwise check if PWD is a project
+if [[ -n "$1" ]]; then
+    TARGET_DIR="$1"
+elif [[ -d "$PWD/.git" ]]; then
+    TARGET_DIR="$PWD"
+else
+    TARGET_DIR="$DEFAULT_DIR"
+fi
+
+# Convert WSL path to Windows path for wt.exe
+WIN_PATH=$(wslpath -w "$TARGET_DIR")
+
+wt.exe -w 0 \
+    new-tab -p "Ubuntu" -d "$WIN_PATH" --title "AI" --tabColor "#FFA500" wsl.exe -d Ubuntu -- bash -ic "cd '$TARGET_DIR' && (claude || true) && exec bash" \; \
+    split-pane -V -p "Ubuntu" -d "$WIN_PATH" --title "AI" --tabColor "#FFA500" wsl.exe -d Ubuntu -- bash -ic "cd '$TARGET_DIR' && (codex || true) && exec bash" \; \
+    new-tab -p "Ubuntu" -d "$WIN_PATH" wsl.exe -d Ubuntu -- bash -ic "cd '$TARGET_DIR' && exec bash"

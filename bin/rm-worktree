@@ -1,0 +1,254 @@
+#!/bin/bash
+# Removes a git worktree and its branch after PR merge
+#
+# Usage:
+#   rm-worktree              # interactive selection
+#   rm-worktree feat/branch  # direct removal
+#   rm-worktree --list       # show worktrees without removing
+
+set -e
+
+REPO_ROOT="$HOME/projects/budgeat"
+WORKTREES_DIR="$HOME/projects/budgeat.worktrees"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
+
+get_pr_status() {
+    local branch="$1"
+    local pr_json
+    pr_json=$(gh pr list --head "$branch" --state all --json number,state,title --limit 1 2>/dev/null || echo "[]")
+
+    if [[ "$pr_json" == "[]" ]]; then
+        echo "no-pr"
+    else
+        echo "$pr_json" | jq -r '.[0].state // "no-pr"' | tr '[:upper:]' '[:lower:]'
+    fi
+}
+
+get_worktrees() {
+    cd "$REPO_ROOT"
+
+    git worktree list --porcelain | \
+        awk '/^worktree / { path=$2 } /^branch / { branch=$2; if (path != "'"$REPO_ROOT"'") print path "|" branch }' | \
+        while IFS='|' read -r path branch; do
+            branch_name="${branch#refs/heads/}"
+            dir_name=$(basename "$path")
+            pr_status=$(get_pr_status "$branch_name")
+            echo "$dir_name|$branch_name|$pr_status|$path"
+        done
+}
+
+format_table() {
+    printf "${BOLD}%-35s %-30s %-10s${NC}\n" "DIRECTORY" "BRANCH" "PR STATUS"
+    printf "%s\n" "$(printf '─%.0s' {1..80})"
+
+    while IFS='|' read -r dir branch status path; do
+        [[ -z "$dir" ]] && continue
+
+        case "$status" in
+            merged) status_display="${GREEN}✓ merged${NC}" ;;
+            open)   status_display="${YELLOW}◐ open${NC}" ;;
+            closed) status_display="${RED}✗ closed${NC}" ;;
+            *)      status_display="${DIM}– no PR${NC}" ;;
+        esac
+
+        printf "%-35s %-30s %b\n" "$dir" "$branch" "$status_display"
+    done
+}
+
+format_for_fzf() {
+    while IFS='|' read -r dir branch status path; do
+        [[ -z "$dir" ]] && continue
+
+        case "$status" in
+            merged) status_icon="✓ merged " ;;
+            open)   status_icon="◐ open   " ;;
+            closed) status_icon="✗ closed " ;;
+            *)      status_icon="– no PR  " ;;
+        esac
+
+        printf "%s  %-35s %s\n" "$status_icon" "$dir" "$branch"
+    done
+}
+
+select_with_fzf() {
+    local worktrees="$1"
+
+    echo "$worktrees" | format_for_fzf | \
+        fzf --ansi \
+            --header="Select worktree to remove (TAB for multi-select, ENTER to confirm)" \
+            --multi \
+            --preview="echo {} | awk '{print \$NF}' | xargs -I{} gh pr view {} --json title,state,mergedAt,url 2>/dev/null || echo 'No PR found'" \
+            --preview-window=right:40%:wrap \
+        | awk '{print $NF}'
+}
+
+select_with_menu() {
+    local worktrees="$1"
+
+    echo "" >&2
+    echo -e "${BOLD}Select worktree to remove:${NC}" >&2
+    echo "" >&2
+
+    local branches=()
+    local i=1
+
+    while IFS='|' read -r dir branch status path; do
+        [[ -z "$dir" ]] && continue
+
+        case "$status" in
+            merged) status_display="${GREEN}✓ merged${NC}" ;;
+            open)   status_display="${YELLOW}◐ open${NC}" ;;
+            closed) status_display="${RED}✗ closed${NC}" ;;
+            *)      status_display="${DIM}– no PR${NC}" ;;
+        esac
+
+        printf "  ${CYAN}%2d)${NC} %-35s %b\n" "$i" "$branch" "$status_display" >&2
+        branches+=("$branch")
+        ((i++))
+    done <<< "$worktrees"
+
+    echo "" >&2
+    printf "  ${CYAN} 0)${NC} Cancel\n" >&2
+    echo "" >&2
+
+    read -p "Enter number: " choice
+
+    if [[ "$choice" == "0" || -z "$choice" ]]; then
+        exit 0
+    fi
+
+    if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#branches[@]} )); then
+        echo "${branches[$((choice-1))]}"
+    else
+        echo "Invalid selection" >&2
+        exit 1
+    fi
+}
+
+remove_worktree() {
+    local branch="$1"
+    local skip_confirm="${2:-false}"
+    local dir_name="${branch//\//-}"
+    local worktree_path="$WORKTREES_DIR/$dir_name"
+
+    echo ""
+    echo -e "${BOLD}==> Removing worktree${NC}"
+    echo "    Branch: $branch"
+    echo "    Path: $worktree_path"
+
+    cd "$REPO_ROOT"
+
+    # Check if PR is merged - if not, require confirmation
+    if [[ "$skip_confirm" != "true" ]]; then
+        local pr_status
+        pr_status=$(get_pr_status "$branch")
+
+        if [[ "$pr_status" != "merged" ]]; then
+            echo ""
+            echo -e "${YELLOW}⚠ WARNING: This branch does not have a merged PR (status: $pr_status)${NC}"
+            echo -e "  Type the full branch name to confirm deletion:"
+            echo ""
+            read -p "  > " confirm_input
+
+            if [[ "$confirm_input" != "$branch" ]]; then
+                echo ""
+                echo -e "${RED}✗ Confirmation failed - branch name did not match${NC}"
+                echo "  Expected: $branch"
+                echo "  Got:      $confirm_input"
+                return 1
+            fi
+            echo ""
+        fi
+    fi
+
+    echo ""
+
+    if [[ -d "$worktree_path" ]]; then
+        git worktree remove "$worktree_path" --force
+        echo -e "    ${GREEN}✓${NC} Worktree removed"
+    else
+        echo -e "    ${YELLOW}⚠${NC} Worktree directory not found, pruning stale entries..."
+        git worktree prune
+    fi
+
+    if git show-ref --verify --quiet "refs/heads/$branch"; then
+        git branch -D "$branch"
+        echo -e "    ${GREEN}✓${NC} Local branch deleted"
+    else
+        echo -e "    ${YELLOW}⚠${NC} Local branch not found (already deleted?)"
+    fi
+
+    if git show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+        git branch -dr "origin/$branch"
+        echo -e "    ${GREEN}✓${NC} Remote tracking branch pruned"
+    fi
+}
+
+# Main
+case "${1:-}" in
+    --list|-l)
+        echo ""
+        echo -e "${BOLD}Git Worktrees${NC} ${DIM}($WORKTREES_DIR)${NC}"
+        echo ""
+        worktrees=$(get_worktrees)
+        if [[ -z "$worktrees" ]]; then
+            echo "No worktrees found."
+        else
+            echo "$worktrees" | format_table
+        fi
+        echo ""
+        exit 0
+        ;;
+    --help|-h)
+        echo "Usage: rm-worktree [OPTIONS] [BRANCH]"
+        echo ""
+        echo "Remove git worktrees interactively or by branch name."
+        echo ""
+        echo "Options:"
+        echo "  --list, -l    List all worktrees with PR status"
+        echo "  --help, -h    Show this help"
+        echo ""
+        echo "Examples:"
+        echo "  rm-worktree                # Interactive selection"
+        echo "  rm-worktree feat/my-feat   # Remove specific branch"
+        exit 0
+        ;;
+    "")
+        echo -e "${DIM}Fetching worktrees and PR status...${NC}"
+        worktrees=$(get_worktrees)
+
+        if [[ -z "$worktrees" ]]; then
+            echo "No worktrees found."
+            exit 0
+        fi
+
+        if command -v fzf &>/dev/null; then
+            selected=$(select_with_fzf "$worktrees")
+        else
+            selected=$(select_with_menu "$worktrees")
+        fi
+
+        if [[ -z "$selected" ]]; then
+            echo "No selection made."
+            exit 0
+        fi
+
+        while IFS= read -r branch; do
+            [[ -n "$branch" ]] && remove_worktree "$branch"
+        done <<< "$selected"
+        ;;
+    *)
+        remove_worktree "$1"
+        ;;
+esac
+
+echo ""
+echo -e "${GREEN}✓ Cleanup complete${NC}"
