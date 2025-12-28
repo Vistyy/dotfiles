@@ -29,10 +29,24 @@ Create a high-confidence, immediately executable implementation plan for the ref
      - If changing the decision would alter scope/requirements, ask the user to confirm using **Question Format (MANDATORY)** — do not quietly accept the original decision.
 3. Using the `superpowers:writing-plans` skill to produce the final plan
 4. Writing the plan to `plan.md` **in the same directory as** the work item’s `spec.md` **only after** all material uncertainties are resolved
+5. Ensuring the plan is “code-monkey executable”: a junior engineer can follow it end-to-end without second-guessing, extra research, or “checking around”
 
 Do **not** implement code in this run.
 
 This task is **interactive**: if you need clarification, you MUST ask and wait. It is acceptable that writing `plan.md` happens in a later turn after questions are resolved.
+
+## Plan Clarity Bar (Non-Negotiable)
+
+The plan you write to `plan.md` MUST be clear and specific enough that an implementer can execute it without having to infer missing steps, hunt for “where” something lives, or guess what “good” looks like.
+
+Required qualities:
+
+- **No-guesswork steps**: every step includes the exact file path(s) to touch, what to change, and how to verify it worked.
+- **Atomic ordering**: steps are small, sequential, and unambiguous (an implementer should not have to decide “what to do next”).
+- **Concrete actions**: avoid vague instructions like “update accordingly”, “wire it up”, “ensure”, “refactor as needed”, “etc.”. Replace with explicit edits and commands.
+- **Local pointers**: when referencing existing code, point to the concrete symbol/file/route/config key to use (not just “the existing X”).
+- **Acceptance criteria**: include a short “Done / Verification” checklist with exact commands to run and expected outcomes (tests, lint, manual checks).
+- **No hidden assumptions**: if a step depends on missing/unknown information, treat that as a material uncertainty and trigger Hard Gate (B) rather than writing a hand-wavy plan.
 
 ## Output Constraint (Non-Negotiable)
 
