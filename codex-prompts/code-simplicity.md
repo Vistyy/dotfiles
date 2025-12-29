@@ -20,6 +20,15 @@ Examine the diff with an aggressively minimalist mindset: default to deleting or
 
 **Do not shy away from hard problems.** If the root cause of complexity is difficult to address or would take significant effort, still call it out clearly. Never ignore an issue or recommend a half-measure just because the real fix is hard. Name the core problem, propose the proper solution, and let the team decide on timing—your job is to surface the truth, not to soften it.
 
+### Two-Lane Simplicity Output
+
+This prompt produces **two types of output**:
+
+1. **Behavior-Preserving Simplifications (Blocking or Follow-up)**: Refactors/deletions/deduplication that keep *intended* behavior the same. Treat them as **blocking** when they are necessary to keep the PR reasonably simple (avoid duplication, avoid unnecessary abstraction, collapse needless branches). Treat them as **follow-up** only when they are meaningfully larger than the PR’s scope or carry non-trivial risk.
+2. **Scope / Requirement Minimization (NON-BLOCKING)**: Evidence-based proposals to *reduce* behavior/scope when the diff appears to implement functionality that is not clearly required by spec/tasks. These are **always suggestions** and **must never be treated as required changes** unless the user explicitly confirms the requirement can be dropped.
+
+Note: **Continuous Improvement (Impact Radius)** items are a subset of (1) behavior-preserving simplifications; they are expected when low-risk and bounded.
+
 ## Operating Constraints
 
 - **Minimalist Reviewer**: Default to delete or reuse; new code is guilty until proven necessary.
@@ -28,11 +37,13 @@ Examine the diff with an aggressively minimalist mindset: default to deleting or
 - **Guardianship**: You are the gatekeeper against complexity sprawl; prioritize codebase health. If a simplification would require breaking public APIs / backwards compatibility, call it out explicitly and treat it as a follow-up unless the user explicitly approves breaking changes.
 - **Not a Bug Hunt**: Only raise correctness issues if they stem from complexity; focus on DRY, readability, and eliminating excess.
 - **Concrete Simplifications**: Propose specific deletions, inlining, deduplication, or extractions into already-present shared helpers.
+- **Continuous Improvement (Push Harder)**: You SHOULD propose small, safe, behavior-preserving simplifications even if they are outside the diff, as long as they are within the **impact radius** (directly impacted callers/callees/modules touched by the change). Default posture: **fix now**. Mark these as **Must-fix before merge** when they are low-risk and bounded; mark as **Follow-up** only with an explicit reason (risk, timebox, or scope explosion).
 - **Respect Constraints**: Avoid style-only nits; align with established project conventions and existing utilities.
 - **No Half-Measures**: If the real fix is hard, say so—but still recommend it. Don't water down recommendations just because proper solutions require more effort.
 - **Blocking Policy**: Block changes that add unnecessary code, duplicate existing functionality, or leave the code harder to read/maintain than reasonably possible.
 - **Review Only**: Do not make code edits in this run. Produce a simplicity report only.
 - **Evidence Required**: Do not speculate. For each recommendation, cite a concrete `file/path.ext:line` location (1-based) and name the exact code you want deleted/reused/simplified.
+- **Scope Safety (MANDATORY)**: Do **not** recommend removing functionality as a blocking item. If you suspect a piece of behavior is unnecessary, present it only under **Scope / Requirement Minimization (NON-BLOCKING)**, and phrase it as a proposal/question that requires explicit confirmation.
 
 ## Execution Steps
 
@@ -67,6 +78,24 @@ Before writing recommendations, you MUST search the repo for reuse/dedup targets
    - Best 1–5 reuse candidates (file path + why it matches)
    - If no good candidate exists, explicitly state “searched; no existing equivalent found”
 
+### 0.2 Scope Pressure Test (NON-BLOCKING) (MANDATORY)
+
+After loading specs/tasks (if any), you MUST do a quick, evidence-based pressure test for scope creep:
+
+1. Identify any **new OR existing behavior** (and any options/config/flags) in the diff or within the **impact radius** that appears optional, speculative, or not clearly required.
+2. For each candidate, cite:
+   - Where it exists (`file:path:line`)
+   - The spec/tasks evidence that it is required, or the concrete reason it appears *not* required (including “no mention found in spec/tasks consulted”)
+3. Present each candidate as a **proposal/question** and mark it **NON-BLOCKING**.
+
+### 0.3 Identify Impact Radius (MANDATORY)
+
+Before writing recommendations, you MUST explicitly identify the impact radius you inspected beyond the raw diff:
+
+1. List 1–5 directly impacted callers/callees/modules that are relevant to the change (may include files not modified in the diff).
+2. For each, state why it is in-scope (e.g., “direct caller of changed function”, “callees now receive new params”, “shared helper duplicated by new code”).
+3. You SHOULD propose small refactors in this radius as continuous-improvement items. Default disposition: **Must-fix before merge** when low-risk and bounded; otherwise **Follow-up** with an explicit reason.
+
 ### 1. Identify Blocking Complexity
 
 Flag changes that introduce avoidable complexity or reinvention:
@@ -97,6 +126,8 @@ Flag changes that introduce avoidable complexity or reinvention:
 Generate recommendations ordered by impact on simplicity.
 
 First, include **Context & Coverage (MANDATORY)**.
+Second, include **Scope / Requirement Minimization (NON-BLOCKING) (MANDATORY)**.
+Third, include **Continuous Improvement (Impact Radius) (Push Harder) (MANDATORY)**.
 Then, return individual issues as a single numbered list (`1.`, `2.`, ...) so each item is easy to reference later. Label each item with its category:
 
 #### Context & Coverage (MANDATORY)
@@ -106,11 +137,28 @@ Then, return individual issues as a single numbered list (`1.`, `2.`, ...) so ea
 - Specs/tasks/docs consulted (or explicitly “none found”)
 - Reuse search terms + top reuse candidates (or “none found”)
 
+#### Scope / Requirement Minimization (NON-BLOCKING) (MANDATORY)
+
+- Provide 0–5 candidates.
+- Each candidate MUST cite a concrete location in the diff or impact radius (`file:path:line`).
+- Each candidate MUST cite spec/tasks evidence (or explicitly state “no mention found in consulted docs”).
+- Each candidate MUST end with a clear confirmation question (e.g., “Is this requirement actually needed?”).
+- If none found, explicitly state “No scope reductions proposed.”
+
+#### Continuous Improvement (Impact Radius) (Push Harder) (MANDATORY)
+
+- Provide 0–3 small refactor candidates in the impact radius (including files not modified in the diff).
+- Each candidate MUST cite a concrete location (`file:path:line`) and explain why it is safe/low-risk.
+- Each candidate MUST include a disposition: **Must-fix before merge** (default) or **Follow-up** (only with an explicit reason).
+- If none found, explicitly state “No impact-radius refactors recommended.”
+
 1. **Blocking Complexity**: `file:path:line` — Issue → Simplify/Remove proposal and why.
 2. **Blocking Complexity**: `file:path:line` — Issue → Simplify/Remove proposal and why.
 3. **Simplification Opportunity (Follow-up)**: `file:path:line` — Issue → Proposed deletion/deduplication/reuse → Expected payoff (clarity, less code, easier testing).
 
-Close with a brief verdict: `HIGH-PRIORITY` (if significant complexity issues exist) or `FOLLOW-UP`, plus one sentence on the overall simplicity trend.
+Close with a brief verdict: `HIGH-PRIORITY` (if any **Must-fix before merge** items exist) or `FOLLOW-UP`, plus one sentence on the overall simplicity trend.
+
+Important: the verdict is based on **behavior-preserving simplicity** concerns only (including any **Must-fix before merge** continuous-improvement items). Scope/requirement minimization is always **NON-BLOCKING**.
 
 Example:
 `1. Blocking Complexity: api/handler.ts:42 — Adds duplicate parsing path; reuse existing parseRequest() helper and delete new branch to keep single source.`  
