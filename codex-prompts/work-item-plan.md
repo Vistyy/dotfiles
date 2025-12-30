@@ -48,6 +48,33 @@ Required qualities:
 - **Acceptance criteria**: include a short “Done / Verification” checklist with exact commands to run and expected outcomes (tests, lint, manual checks).
 - **No hidden assumptions**: if a step depends on missing/unknown information, treat that as a material uncertainty and trigger Hard Gate (B) rather than writing a hand-wavy plan.
 
+## Checkpoint System (Non-Negotiable)
+
+Your `plan.md` MUST be written in **single-session checkpoints** from the start. Do NOT write a big plan and split it later.
+
+**Definition:** A “single-session checkpoint” is small enough that a junior engineer can implement it end-to-end in one focused session (including tests + typecheck/lint relevant to the touched area).
+
+**Requirements:**
+
+- The plan MUST include a `## Checkpoint Split` (or `## Checkpoints (single-session sized)`) section near the top.
+- Each checkpoint MUST:
+  - list the exact Task(s) it covers,
+  - state a concrete deliverable/outcome,
+  - end with a **Checkpoint Verification** block that includes exact commands to run and expected outcome (`PASS` / “green”).
+- Prefer **one Task per checkpoint**. If a single Task is too large, split the Task into smaller numbered Tasks and checkpoint them separately.
+- Checkpoints MUST be sequential and “stop/resume friendly”:
+  - end each checkpoint with “Stop here; proceed to next checkpoint in a fresh session”.
+
+**Checkpoint template (structure, not literal text):**
+
+- `## Checkpoint Split` table (Checkpoint → Task(s) → Deliverable)
+- For each checkpoint:
+  - `# Checkpoint N: <short name> (Task X)`
+  - `## Task X: <task name>`
+  - `### Checkpoint N Verification`:
+    - `just test ...` / `just tests ...` / `just typecheck ...` / `just lint ...` as appropriate
+    - Expected: PASS
+
 ## Output Constraint (Non-Negotiable)
 
 Do NOT print the full plan content in the chat.
@@ -173,5 +200,15 @@ Before writing/updating `WORK_ITEM_PLAN`, either:
 Use `superpowers:writing-plans` to generate the plan and write/update `WORK_ITEM_PLAN`.
 
 If `plan.md` already exists, update it rather than starting over; preserve any content that is still correct and remove contradictions.
+
+### 5a. Checkpoint Fit Self-Audit (Required Before Writing plan.md)
+
+Before writing/updating `WORK_ITEM_PLAN`, do a checkpoint “fit” pass:
+
+- Every Task is assigned to exactly one checkpoint (no orphan tasks).
+- Every checkpoint has a clear “Outcome/Deliverable” statement.
+- Every checkpoint ends with **Checkpoint Verification** commands (exact commands, expected PASS).
+- No checkpoint requires “figure out what to do next”; each has atomic steps with file paths.
+- If any checkpoint still feels >1 session, split it further BEFORE writing `plan.md`.
 
 After writing/updating `WORK_ITEM_PLAN`, do NOT paste or preview its contents in chat. In chat, only confirm that `plan.md` was written and provide a brief outline (max 10 bullets).
