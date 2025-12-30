@@ -126,9 +126,12 @@ Flag changes that introduce avoidable complexity or reinvention:
 Generate recommendations ordered by impact on simplicity.
 
 First, include **Context & Coverage (MANDATORY)**.
-Second, include **Scope / Requirement Minimization (NON-BLOCKING) (MANDATORY)**.
-Third, include **Continuous Improvement (Impact Radius) (Push Harder) (MANDATORY)**.
-Then, return individual issues as a single numbered list (`1.`, `2.`, ...) so each item is easy to reference later. Label each item with its category:
+Then include findings in this order:
+1) **Scope / Requirement Minimization (NON-BLOCKING) (MANDATORY)**
+2) **Continuous Improvement (Impact Radius) (Push Harder) (MANDATORY)**
+3) Any additional behavior-preserving simplicity findings
+
+**Numbering rule (MANDATORY):** All findings across (1)–(3) MUST be returned as a single continuous numbered sequence (`1.`, `2.`, ...) so each item is easy to reference later. Do **not** restart numbering per section. Each numbered item MUST start with its category label (e.g., “Scope / Requirement Minimization (NON-BLOCKING)”, “Continuous Improvement (Impact Radius) (Push Harder)”, “Blocking Complexity”, “Simplification Opportunity (Follow-up)”). Example: if you listed 2 scope-minimization items and 1 continuous-improvement item, your first blocking-complexity item is `4.` (not `1.`).
 
 #### Context & Coverage (MANDATORY)
 
@@ -139,7 +142,7 @@ Then, return individual issues as a single numbered list (`1.`, `2.`, ...) so ea
 
 #### Scope / Requirement Minimization (NON-BLOCKING) (MANDATORY)
 
-- Provide 0–5 candidates.
+- Provide 0–5 candidates as numbered findings (continue the global numbering sequence).
 - Each candidate MUST cite a concrete location in the diff or impact radius (`file:path:line`).
 - Each candidate MUST cite spec/tasks evidence (or explicitly state “no mention found in consulted docs”).
 - Each candidate MUST end with a clear confirmation question (e.g., “Is this requirement actually needed?”).
@@ -147,22 +150,24 @@ Then, return individual issues as a single numbered list (`1.`, `2.`, ...) so ea
 
 #### Continuous Improvement (Impact Radius) (Push Harder) (MANDATORY)
 
-- Provide 0–3 small refactor candidates in the impact radius (including files not modified in the diff).
+- Provide 0–3 small refactor candidates in the impact radius (including files not modified in the diff) as numbered findings (continue the global numbering sequence).
 - Each candidate MUST cite a concrete location (`file:path:line`) and explain why it is safe/low-risk.
 - Each candidate MUST include a disposition: **Must-fix before merge** (default) or **Follow-up** (only with an explicit reason).
 - If none found, explicitly state “No impact-radius refactors recommended.”
 
-1. **Blocking Complexity**: `file:path:line` — Issue → Simplify/Remove proposal and why.
-2. **Blocking Complexity**: `file:path:line` — Issue → Simplify/Remove proposal and why.
-3. **Simplification Opportunity (Follow-up)**: `file:path:line` — Issue → Proposed deletion/deduplication/reuse → Expected payoff (clarity, less code, easier testing).
+<N>. **Blocking Complexity**: `file:path:line` — Issue → Simplify/Remove proposal and why.
+<N+1>. **Blocking Complexity**: `file:path:line` — Issue → Simplify/Remove proposal and why.
+<N+2>. **Simplification Opportunity (Follow-up)**: `file:path:line` — Issue → Proposed deletion/deduplication/reuse → Expected payoff (clarity, less code, easier testing).
 
 Close with a brief verdict: `HIGH-PRIORITY` (if any **Must-fix before merge** items exist) or `FOLLOW-UP`, plus one sentence on the overall simplicity trend.
 
 Important: the verdict is based on **behavior-preserving simplicity** concerns only (including any **Must-fix before merge** continuous-improvement items). Scope/requirement minimization is always **NON-BLOCKING**.
 
 Example:
-`1. Blocking Complexity: api/handler.ts:42 — Adds duplicate parsing path; reuse existing parseRequest() helper and delete new branch to keep single source.`  
-`2. Simplification Opportunity (Follow-up): ui/form.tsx:88 — Two nearly identical validation blocks; extract to shared validateInput() helper for reuse and shorter render path.`
+- `1. Scope / Requirement Minimization (NON-BLOCKING): api/handler.ts:42 — Adds “advanced” parsing mode not mentioned in tasks.md — Is this requirement actually needed?`
+- `2. Continuous Improvement (Impact Radius) (Push Harder): api/parse.ts:19 — Inline trivial wrapper to reduce indirection; safe because call sites are local — Disposition: Must-fix before merge.`
+- `3. Blocking Complexity: api/handler.ts:42 — Adds duplicate parsing path; reuse existing parseRequest() helper and delete new branch to keep single source.`
+- `4. Simplification Opportunity (Follow-up): ui/form.tsx:88 — Two nearly identical validation blocks; extract to shared validateInput() helper for reuse and shorter render path.`
 
 ### 6. Honor Custom Directives
 
