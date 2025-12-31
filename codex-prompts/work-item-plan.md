@@ -62,11 +62,12 @@ Your `plan.md` MUST be written in **single-session checkpoints** from the start.
   - state a concrete deliverable/outcome,
   - end with a **Checkpoint Verification** block that includes exact commands to run and expected outcome (`PASS` / “green”).
 - Prefer **one Task per checkpoint**. If a single Task is too large, split the Task into smaller numbered Tasks and checkpoint them separately.
+- **Execution rule (must be stated in plan.md):** checkpoints are implemented strictly **one-by-one**. After finishing Checkpoint N, the implementer MUST (a) commit, (b) update `plan.md` to mark `Checkpoint N complete`, and (c) **stop**. Checkpoint N+1 starts only in a **fresh session**.
 - Checkpoints MUST be sequential and “stop/resume friendly”:
   - end each checkpoint with:
-    - “Checkpoint Completion” steps (commit + plan status update), then
-    - “Stop here; proceed to next checkpoint in a fresh session”.
-    - The implementer MUST commit after each checkpoint and update plan status to: `Checkpoint N complete`.
+    - “Checkpoint Completion” steps (quality checks + commit + plan status update), then
+    - “Stop here; proceed to next checkpoint in a fresh session (do not start the next checkpoint in this session)”.
+    - The implementer MUST commit after each checkpoint and update `plan.md` status to: `Checkpoint N complete`.
 
 **Checkpoint template (structure, not literal text):**
 
@@ -79,8 +80,9 @@ Your `plan.md` MUST be written in **single-session checkpoints** from the start.
     - Expected: PASS
   - `### Checkpoint N Completion`:
     - `git status` (sanity check)
+    - Run the checkpoint’s quality/verification commands again (must be green) (e.g., `just quality`)
     - `git add -A && git commit -m "checkpoint N complete: <short name>"`
-    - Update your plan tracker status to: `Checkpoint N complete`
+    - Update `plan.md` checkpoint status to: `Checkpoint N complete` (and any external tracker if applicable)
     - Stop here; proceed to next checkpoint in a fresh session
 
 ## Output Constraint (Non-Negotiable)
@@ -216,7 +218,7 @@ Before writing/updating `WORK_ITEM_PLAN`, do a checkpoint “fit” pass:
 - Every Task is assigned to exactly one checkpoint (no orphan tasks).
 - Every checkpoint has a clear “Outcome/Deliverable” statement.
 - Every checkpoint ends with **Checkpoint Verification** commands (exact commands, expected PASS).
-- Every checkpoint includes explicit **Checkpoint Completion** steps: commit + plan status update (`Checkpoint N complete`).
+- Every checkpoint includes explicit **Checkpoint Completion** steps: re-run quality checks (green) + commit + `plan.md` status update (`Checkpoint N complete`).
 - No checkpoint requires “figure out what to do next”; each has atomic steps with file paths.
 - If any checkpoint still feels >1 session, split it further BEFORE writing `plan.md`.
 
