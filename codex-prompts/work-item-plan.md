@@ -62,7 +62,7 @@ Your `plan.md` MUST be written in **single-session checkpoints** from the start.
   - state a concrete deliverable/outcome,
   - end with a **Checkpoint Verification** block that includes exact commands to run and expected outcome (`PASS` / “green”).
 - Prefer **one Task per checkpoint**. If a single Task is too large, split the Task into smaller numbered Tasks and checkpoint them separately.
-- **Execution rule (must be stated in plan.md):** checkpoints are implemented strictly **one-by-one**. After finishing Checkpoint N, the implementer MUST (a) commit, (b) update `plan.md` to mark `Checkpoint N complete`, and (c) **stop**. Checkpoint N+1 starts only in a **fresh session**.
+- **Execution rule (must be stated in plan.md):** checkpoints are implemented strictly **one-by-one**. After finishing Checkpoint N, the implementer MUST (a) commit, (b) update `plan.md` to mark `Checkpoint N complete` (including the `## Checkpoint Split` table `Status` column), and (c) **stop**. Checkpoint N+1 starts only in a **fresh session**.
 - Checkpoints MUST be sequential and “stop/resume friendly”:
   - end each checkpoint with:
     - “Checkpoint Completion” steps (quality checks + commit + plan status update), then
@@ -71,7 +71,8 @@ Your `plan.md` MUST be written in **single-session checkpoints** from the start.
 
 **Checkpoint template (structure, not literal text):**
 
-- `## Checkpoint Split` table (Checkpoint → Task(s) → Deliverable)
+- `## Checkpoint Split` table (Checkpoint → Task(s) → Deliverable → Status)
+  - The table MUST include a `Status` column and the implementer MUST keep it up to date while working (e.g., `✅ Done` for completed checkpoints; optionally `🚧 In progress` / `⬜ Not started`).
 - For each checkpoint:
   - `# Checkpoint N: <short name> (Task X)`
   - `## Task X: <task name>`
@@ -82,7 +83,7 @@ Your `plan.md` MUST be written in **single-session checkpoints** from the start.
     - `git status` (sanity check)
     - Run the checkpoint’s quality/verification commands again (must be green) (e.g., `just quality`)
     - `git add -A && git commit -m "checkpoint N complete: <short name>"`
-    - Update `plan.md` checkpoint status to: `Checkpoint N complete` (and any external tracker if applicable)
+    - Update `plan.md` checkpoint status to: `Checkpoint N complete` (and the `## Checkpoint Split` table `Status` cell to `✅ Done`; and any external tracker if applicable)
     - Stop here; proceed to next checkpoint in a fresh session
 
 ## Output Constraint (Non-Negotiable)
