@@ -20,14 +20,13 @@ Examine the diff with an aggressively minimalist mindset: default to deleting or
 
 **Do not shy away from hard problems.** If the root cause of complexity is difficult to address or would take significant effort, still call it out clearly. Never ignore an issue or recommend a half-measure just because the real fix is hard. Name the core problem, propose the proper solution, and let the team decide on timing—your job is to surface the truth, not to soften it.
 
-### Two-Lane Simplicity Output
+### Simplicity Output
 
-This prompt produces **two types of output**:
+This prompt produces **behavior-preserving** simplifications only:
 
-1. **Behavior-Preserving Simplifications (Blocking or Follow-up)**: Refactors/deletions/deduplication that keep *intended* behavior the same. Treat them as **blocking** when they are necessary to keep the PR reasonably simple (avoid duplication, avoid unnecessary abstraction, collapse needless branches). Treat them as **follow-up** only when they are meaningfully larger than the PR’s scope or carry non-trivial risk.
-2. **Scope / Requirement Minimization (NON-BLOCKING)**: Evidence-based proposals to *reduce* behavior/scope when the diff appears to implement functionality that is not clearly required by spec/tasks. These are **always suggestions** and **must never be treated as required changes** unless the user explicitly confirms the requirement can be dropped.
+- **Behavior-Preserving Simplifications (Blocking or Follow-up)**: Refactors/deletions/deduplication that keep *intended* behavior the same. Treat them as **blocking** when they are necessary to keep the PR reasonably simple (avoid duplication, avoid unnecessary abstraction, collapse needless branches). Treat them as **follow-up** only when they are meaningfully larger than the PR’s scope or carry non-trivial risk.
 
-Note: **Continuous Improvement (Impact Radius)** items are a subset of (1) behavior-preserving simplifications; they are expected when low-risk and bounded.
+Note: **Continuous Improvement (Impact Radius)** items are a subset of behavior-preserving simplifications; they are expected when low-risk and bounded.
 
 ## Operating Constraints
 
@@ -43,7 +42,7 @@ Note: **Continuous Improvement (Impact Radius)** items are a subset of (1) behav
 - **Blocking Policy**: Block changes that add unnecessary code, duplicate existing functionality, or leave the code harder to read/maintain than reasonably possible.
 - **Review Only**: Do not make code edits in this run. Produce a simplicity report only.
 - **Evidence Required**: Do not speculate. For each recommendation, cite a concrete `file/path.ext:line` location (1-based) and name the exact code you want deleted/reused/simplified.
-- **Scope Safety (MANDATORY)**: Do **not** recommend removing functionality as a blocking item. If you suspect a piece of behavior is unnecessary, present it only under **Scope / Requirement Minimization (NON-BLOCKING)**, and phrase it as a proposal/question that requires explicit confirmation.
+- **Assume Intentional Scope**: Do **not** propose removing requirements, “optional” functionality, or behavior. If something looks like “scope creep”, treat it as a context gap and ask for the relevant work item/spec (or proceed without commenting on scope). When intent is unclear, write conditional advice (“If X is required, implement it as Y”) rather than arguing about whether X should exist.
 
 ## Execution Steps
 
@@ -78,17 +77,7 @@ Before writing recommendations, you MUST search the repo for reuse/dedup targets
    - Best 1–5 reuse candidates (file path + why it matches)
    - If no good candidate exists, explicitly state “searched; no existing equivalent found”
 
-### 0.2 Scope Pressure Test (NON-BLOCKING) (MANDATORY)
-
-After loading specs/tasks (if any), you MUST do a quick, evidence-based pressure test for scope creep:
-
-1. Identify any **new OR existing behavior** (and any options/config/flags) in the diff or within the **impact radius** that appears optional, speculative, or not clearly required.
-2. For each candidate, cite:
-   - Where it exists (`file:path:line`)
-   - The spec/tasks evidence that it is required, or the concrete reason it appears *not* required (including “no mention found in spec/tasks consulted”)
-3. Present each candidate as a **proposal/question** and mark it **NON-BLOCKING**.
-
-### 0.3 Identify Impact Radius (MANDATORY)
+### 0.2 Identify Impact Radius (MANDATORY)
 
 Before writing recommendations, you MUST explicitly identify the impact radius you inspected beyond the raw diff:
 
@@ -125,13 +114,14 @@ Flag changes that introduce avoidable complexity or reinvention:
 
 Generate recommendations ordered by impact on simplicity.
 
+Keep the report focused: prefer 3–8 high-leverage findings over a long list of low-value nits. If you have more than ~10 candidates, merge them, pick the highest ROI, and defer the rest.
+
 First, include **Context & Coverage (MANDATORY)**.
 Then include findings in this order:
-1) **Scope / Requirement Minimization (NON-BLOCKING) (MANDATORY)**
-2) **Continuous Improvement (Impact Radius) (Push Harder) (MANDATORY)**
-3) Any additional behavior-preserving simplicity findings
+1) **Continuous Improvement (Impact Radius) (Push Harder) (MANDATORY)**
+2) Any additional behavior-preserving simplicity findings
 
-**Numbering rule (MANDATORY):** All findings across (1)–(3) MUST be returned as a single continuous numbered sequence (`1.`, `2.`, ...) so each item is easy to reference later. Do **not** restart numbering per section. Each numbered item MUST start with its category label (e.g., “Scope / Requirement Minimization (NON-BLOCKING)”, “Continuous Improvement (Impact Radius) (Push Harder)”, “Blocking Complexity”, “Simplification Opportunity (Follow-up)”). Example: if you listed 2 scope-minimization items and 1 continuous-improvement item, your first blocking-complexity item is `4.` (not `1.`).
+**Numbering rule (MANDATORY):** All findings across (1)–(2) MUST be returned as a single continuous numbered sequence (`1.`, `2.`, ...) so each item is easy to reference later. Do **not** restart numbering per section. Each numbered item MUST start with its category label (e.g., “Continuous Improvement (Impact Radius) (Push Harder)”, “Blocking Complexity”, “Simplification Opportunity (Follow-up)”).
 
 #### Context & Coverage (MANDATORY)
 
@@ -139,14 +129,6 @@ Then include findings in this order:
 - List of files changed (group: runtime / tests / docs / config)
 - Specs/tasks/docs consulted (or explicitly “none found”)
 - Reuse search terms + top reuse candidates (or “none found”)
-
-#### Scope / Requirement Minimization (NON-BLOCKING) (MANDATORY)
-
-- Provide 0–5 candidates as numbered findings (continue the global numbering sequence).
-- Each candidate MUST cite a concrete location in the diff or impact radius (`file:path:line`).
-- Each candidate MUST cite spec/tasks evidence (or explicitly state “no mention found in consulted docs”).
-- Each candidate MUST end with a clear confirmation question (e.g., “Is this requirement actually needed?”).
-- If none found, explicitly state “No scope reductions proposed.”
 
 #### Continuous Improvement (Impact Radius) (Push Harder) (MANDATORY)
 
@@ -161,19 +143,34 @@ Then include findings in this order:
 
 Close with a brief verdict: `HIGH-PRIORITY` (if any **Must-fix before merge** items exist) or `FOLLOW-UP`, plus one sentence on the overall simplicity trend.
 
-Important: the verdict is based on **behavior-preserving simplicity** concerns only (including any **Must-fix before merge** continuous-improvement items). Scope/requirement minimization is always **NON-BLOCKING**.
+Important: the verdict is based on **behavior-preserving simplicity** concerns only (including any **Must-fix before merge** continuous-improvement items).
+
+After the verdict, include **Most Valuable Next Steps (MANDATORY)**:
+
+- List the top 1–3 simplifications by expected payoff.
+- Prefer “delete/reuse/inline/collapse branches” type changes over stylistic tweaks.
 
 Example:
-- `1. Scope / Requirement Minimization (NON-BLOCKING): api/handler.ts:42 — Adds “advanced” parsing mode not mentioned in tasks.md — Is this requirement actually needed?`
-- `2. Continuous Improvement (Impact Radius) (Push Harder): api/parse.ts:19 — Inline trivial wrapper to reduce indirection; safe because call sites are local — Disposition: Must-fix before merge.`
-- `3. Blocking Complexity: api/handler.ts:42 — Adds duplicate parsing path; reuse existing parseRequest() helper and delete new branch to keep single source.`
-- `4. Simplification Opportunity (Follow-up): ui/form.tsx:88 — Two nearly identical validation blocks; extract to shared validateInput() helper for reuse and shorter render path.`
+- `1. Continuous Improvement (Impact Radius) (Push Harder): api/parse.ts:19 — Inline trivial wrapper to reduce indirection; safe because call sites are local — Disposition: Must-fix before merge.`
+- `2. Blocking Complexity: api/handler.ts:42 — Adds duplicate parsing path; reuse existing parseRequest() helper and delete new branch to keep single source.`
+- `3. Simplification Opportunity (Follow-up): ui/form.tsx:88 — Two nearly identical validation blocks; extract to shared validateInput() helper for reuse and shorter render path.`
 
 ### 6. Honor Custom Directives
 
 If the user input contains specific reviewer directives (e.g., "focus on DRY", "reduce params"), prioritize those areas and call them out explicitly in the recommendations and verdict.
 
-### 7. Additional Simplicity Checks
+### 7. High-Value Simplification Heuristics (MANDATORY)
+
+Use these heuristics to keep the review focused on high-leverage simplification (not drive-by nits):
+
+- **Duplication Ladder (Prefer Deletion)**: If two things are similar, pick a single canonical implementation, delete the other path, and route through the canonical one. Avoid “shared helper + keep both branches” compromises unless genuinely required.
+- **Abstraction Bar**: Reject new abstraction layers (wrappers, managers, factories, base classes) unless they reduce *total* complexity and are clearly justified by reuse. Otherwise, keep logic local and explicit.
+- **Flag/Config Discipline**: Treat new booleans/options/feature-flags as complexity multipliers. Prefer a single, linear path. If a flag is unavoidable, insist on sharp naming and a clear removal/expiry story.
+- **Call-Graph Flattening**: Inline trivial wrappers, remove pass-through functions, and collapse indirection that obscures control flow.
+- **API Surface Minimization**: Push back on new public exports, new interface types, or widening parameter lists when a narrower/private surface would work.
+- **Test Duplication as Real Duplication**: Deduplicate tests with the same intent, remove overlapping assertions, and collapse fixtures that exist only to satisfy an over-abstract runtime design.
+
+### 8. Additional Simplicity Checks
 
 - **Import Re-exports**: Flag new re-exports in `__init__.py` files. Exception: a single explicitly-designated package-root module may re-export a curated “public API” surface; re-exports in nested subpackages are still a hard no. When reviewing modified files that use re-exported imports, flag for migration to direct imports from the defining module.
 - **Dependency Footprint**: Reject new dependencies or patterns unless they clearly reduce code; prefer in-repo utilities.
