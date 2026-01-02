@@ -48,43 +48,18 @@ Required qualities:
 - **Acceptance criteria**: include a short “Done / Verification” checklist with exact commands to run and expected outcomes (tests, lint, manual checks).
 - **No hidden assumptions**: if a step depends on missing/unknown information, treat that as a material uncertainty and trigger Hard Gate (B) rather than writing a hand-wavy plan.
 
-## Checkpoint System (Non-Negotiable)
+## Task Quality + Commit Rules (Non-Negotiable)
 
-Your `plan.md` MUST be written in **single-session checkpoints** from the start. Do NOT write a big plan and split it later.
-
-**Definition:** A “single-session checkpoint” is small enough that a junior engineer can implement it end-to-end in one focused session (including tests + typecheck/lint relevant to the touched area).
+Your `plan.md` MUST be written as a sequence of numbered **Tasks** that can be executed end-to-end without pausing between them.
 
 **Requirements:**
 
-- The plan MUST include a `## Checkpoint Split` (or `## Checkpoints (single-session sized)`) section near the top.
-- Each checkpoint MUST:
-  - list the exact Task(s) it covers,
-  - state a concrete deliverable/outcome,
-  - end with a **Checkpoint Verification** block that includes exact commands to run and expected outcome (`PASS` / “green”).
-- Prefer **one Task per checkpoint**. If a single Task is too large, split the Task into smaller numbered Tasks and checkpoint them separately.
-- **Execution rule (must be stated in plan.md):** checkpoints are implemented strictly **one-by-one**. After finishing Checkpoint N, the implementer MUST (a) commit, (b) update `plan.md` to mark `Checkpoint N complete` (including the `## Checkpoint Split` table `Status` column), and (c) **stop**. Checkpoint N+1 starts only in a **fresh session**.
-- Checkpoints MUST be sequential and “stop/resume friendly”:
-  - end each checkpoint with:
-    - “Checkpoint Completion” steps (quality checks + commit + plan status update), then
-    - “Stop here; proceed to next checkpoint in a fresh session (do not start the next checkpoint in this session)”.
-    - The implementer MUST commit after each checkpoint and update `plan.md` status to: `Checkpoint N complete`.
-
-**Checkpoint template (structure, not literal text):**
-
-- `## Checkpoint Split` table (Checkpoint → Task(s) → Deliverable → Status)
-  - The table MUST include a `Status` column and the implementer MUST keep it up to date while working (e.g., `✅ Done` for completed checkpoints; optionally `🚧 In progress` / `⬜ Not started`).
-- For each checkpoint:
-  - `# Checkpoint N: <short name> (Task X)`
-  - `## Task X: <task name>`
-  - `### Checkpoint N Verification`:
-    - `just quality`
-    - Expected: PASS
-  - `### Checkpoint N Completion`:
-    - `git status` (sanity check)
-    - Run the checkpoint’s quality/verification commands again (must be green) (e.g., `just quality`)
-    - `git add -A && git commit -m "checkpoint N complete: <short name>"`
-    - Update `plan.md` checkpoint status to: `Checkpoint N complete` (and the `## Checkpoint Split` table `Status` cell to `✅ Done`; and any external tracker if applicable)
-    - Stop here; proceed to next checkpoint in a fresh session
+- Each Task MUST end with a **Task Verification** block that includes exact commands to run and expected outcome (`PASS` / “green”).
+  - Minimum required command after **every** Task: `just quality`
+  - Add any task-specific verification commands as needed (tests, migrations, local run, etc.).
+- **Execution rule (must be stated in plan.md):** after finishing each Task, run `just quality` (and any task-specific verification) and ensure it is green before starting the next Task.
+- **Commit rule (must be stated in plan.md):** do **not** commit after each Task. Make **one** commit at the very end, after all Tasks are complete and `just quality` is green.
+  - Final completion (example): `git status` → `just quality` → `git add -A && git commit -m "<work item>: <short summary>"`
 
 ## Output Constraint (Non-Negotiable)
 
@@ -212,15 +187,13 @@ Use `superpowers:writing-plans` to generate the plan and write/update `WORK_ITEM
 
 If `plan.md` already exists, update it rather than starting over; preserve any content that is still correct and remove contradictions.
 
-### 5a. Checkpoint Fit Self-Audit (Required Before Writing plan.md)
+### 5a. Task Verification Self-Audit (Required Before Writing plan.md)
 
-Before writing/updating `WORK_ITEM_PLAN`, do a checkpoint “fit” pass:
+Before writing/updating `WORK_ITEM_PLAN`, do a task “fit” pass:
 
-- Every Task is assigned to exactly one checkpoint (no orphan tasks).
-- Every checkpoint has a clear “Outcome/Deliverable” statement.
-- Every checkpoint ends with **Checkpoint Verification** commands (exact commands, expected PASS).
-- Every checkpoint includes explicit **Checkpoint Completion** steps: re-run quality checks (green) + commit + `plan.md` status update (`Checkpoint N complete`).
-- No checkpoint requires “figure out what to do next”; each has atomic steps with file paths.
-- If any checkpoint still feels >1 session, split it further BEFORE writing `plan.md`.
+- Every Task has a clear “Outcome/Deliverable” statement.
+- Every Task ends with **Task Verification** commands (exact commands, expected PASS), including `just quality`.
+- The plan includes a final “Done / Verification” checklist that re-runs `just quality` and ends with a single commit.
+- No Task requires “figure out what to do next”; each has atomic steps with file paths.
 
 After writing/updating `WORK_ITEM_PLAN`, do NOT paste or preview its contents in chat. In chat, only confirm that `plan.md` was written and provide a brief outline (max 10 bullets).
