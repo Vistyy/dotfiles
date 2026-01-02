@@ -20,10 +20,25 @@ BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
 
+prompt_read() {
+    local prompt="$1"
+    local var_name="$2"
+
+    if [[ -r /dev/tty ]]; then
+        if ! read -r -p "$prompt" "$var_name" </dev/tty; then
+            return 1
+        fi
+    else
+        if ! read -r -p "$prompt" "$var_name"; then
+            return 1
+        fi
+    fi
+}
+
 get_pr_status() {
-    local branch="$1"
-    local pr_json
-    pr_json=$(gh pr list --head "$branch" --state all --json number,state,title --limit 1 2>/dev/null || echo "[]")
+	    local branch="$1"
+	    local pr_json
+	    pr_json=$(gh pr list --head "$branch" --state all --json number,state,title --limit 1 2>/dev/null || echo "[]")
 
     if [[ "$pr_json" == "[]" ]]; then
         echo "no-pr"
@@ -119,7 +134,8 @@ select_with_menu() {
     printf "  ${CYAN} 0)${NC} Cancel\n" >&2
     echo "" >&2
 
-    read -p "Enter number: " choice
+    local choice
+    prompt_read "Enter number: " choice || exit 0
 
     if [[ "$choice" == "0" || -z "$choice" ]]; then
         exit 0
@@ -156,7 +172,8 @@ remove_worktree() {
             echo -e "${YELLOW}⚠ WARNING: This branch does not have a merged PR (status: $pr_status)${NC}"
             echo -e "  Type the full branch name to confirm deletion:"
             echo ""
-            read -p "  > " confirm_input
+            local confirm_input
+            prompt_read "  > " confirm_input || return 1
 
             if [[ "$confirm_input" != "$branch" ]]; then
                 echo ""
@@ -243,7 +260,7 @@ case "${1:-}" in
 
         while IFS= read -r branch; do
             [[ -n "$branch" ]] && remove_worktree "$branch"
-        done <<< "$selected"
+        done < <(printf '%s\n' "$selected")
         ;;
     *)
         remove_worktree "$1"
