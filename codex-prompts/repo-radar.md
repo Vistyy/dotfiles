@@ -17,6 +17,8 @@ Treat `$ARGUMENTS` as optional directives. Common patterns:
 - `mode=both|problems|opportunities`: What to prioritize (default `both`).
 - `outdir=docs/improvements`: Where to write the per-run folder (default `docs/improvements`).
 - `run=<id>`: Optional run folder name override (default is generated).
+- `bar=high|medium|low`: How strict to be about only surfacing high-leverage items (default `high`).
+- `repeats=summary|include|hide`: How to handle tasks that match prior run items (default `summary`).
 
 If directives are ambiguous, ask the user for clarification before proceeding.
 
@@ -42,6 +44,8 @@ If the user requested `write` / `--write`, also materialize the best candidates 
 - **No code edits**: Do not modify product code in this run. Output report only, plus optional docs under `docs/improvements/`.
 - **Prefer leverage**: Focus on changes that reduce ongoing cost (maintenance, cognitive load, defects) across multiple files/modules.
 - **Scope tasks**: Each task must be independently implementable, timeboxable, and have clear success criteria.
+- **Avoid preference-nits**: Do not propose changes that are primarily stylistic, taste-based, or “nice-to-have wording” unless they prevent real drift or recurring confusion with concrete downstream cost.
+- **Cap doc-only work**: Unless `focus=docs` was requested, propose at most **one** docs-only task, and only if it prevents drift or mis-implementation. Prefer engineering-facing improvements.
 
 ## Execution Steps
 
@@ -56,6 +60,8 @@ Determine:
 - `MODE`: default `both`
 - `OUTDIR`: default `docs/improvements`
 - `RUN_ID`: per-run folder name
+- `BAR`: default `high`
+- `REPEATS`: default `summary`
 
 If `WRITE_DOCS` is false, ignore `WRITE_WHAT` and `OUTDIR`.
 
@@ -81,14 +87,18 @@ Summarize results briefly; do not dump huge command output.
 
 If `OUTDIR` exists, scan prior runs to avoid duplicating work:
 - Find recent prior repo radar reports (if any) and note what was already proposed.
-- If a newly proposed task substantially matches an existing task in a previous run, keep the new entry but:
-  - Mark it as a repeat (include a link/path to the earlier item doc), and
+- If a newly proposed task substantially matches an existing task in a previous run:
+  - Always include a link/path to the earlier item doc.
   - Prefer adding “what changed since last run” rather than rewriting the same rationale.
+  - Apply `REPEATS`:
+    - `summary` (default): Do not count repeats toward `LIMIT`; put them in a short “Previously Identified (Still Open)” section at the end.
+    - `include`: Treat repeats like normal tasks and count toward `LIMIT`.
+    - `hide`: Omit repeats unless new evidence makes it materially more urgent.
 
 ### 2) Identify “hotspots” (high churn, high complexity concentration)
 
 Compute top-changed files over `SINCE`:
-- `git log --since="$$SINCE" --name-only --pretty=format: | sed '/^$/d' | sort | uniq -c | sort -nr | head -n 30`
+- `git log --since="$SINCE" --name-only --pretty=format: | sed '/^$/d' | sort | uniq -c | sort -nr | head -n 30`
 
 For the top ~10 candidates, open and inspect:
 - Are these “god modules”, cross-cutting helpers, or unstable interfaces?
@@ -103,12 +113,24 @@ Depending on what you find (and `FOCUS` if provided), probe with targeted search
 - **Duplication clusters**: near-identical helpers/config blocks/validation logic across folders
 - **Test brittleness**: repeated setup fixtures, slow integration patterns used everywhere, snapshot sprawl, coupled mocks
 - **Docs drift**: multiple partial sources-of-truth, stale README sections compared to current usage
+- **Architecture change candidates** (only if justified by symptoms/evidence):
+  - “Async boundary confusion”: blocking I/O inside async paths, ad-hoc threadpool usage, mixed sync/async stacks
+  - “Lifecycle sprawl”: inconsistent initialization/cleanup patterns, duplicated composition roots, scattered wiring
+  - “Boundary leaks”: domain/app layers importing framework details, cross-package private imports, “reach-through” into internals
+  - “Pattern pressure”: repeated hand-rolled factories/service-locators/registries that indicate a missing or wrong abstraction
 
 Be explicit about what you searched for and why.
 
 ### 4) Synthesize into a prioritized improvement list
 
 Create **at most `LIMIT`** task candidates. Prefer fewer, higher-confidence items over many weak ones.
+
+Apply an explicit impact bar:
+- If `BAR=high` (default): include only items that are plausibly **multiplicative** (reduce future change cost across multiple modules or remove a recurring footgun). Drop anything that reads like a preference nit.
+- If `BAR=medium`: allow some “cleanup with payoff” items, but keep them bounded and evidence-based.
+- If `BAR=low`: allow exploratory opportunities and design spikes; clearly label as such.
+
+If `BAR=high` and fewer than ~3 tasks clear the bar, explicitly say “No additional high-leverage items found in this pass” and do not pad the list with weaker items.
 
 Each task must include:
 - Title (short, specific)
@@ -117,7 +139,12 @@ Each task must include:
   - If `Problem`: what hurts today / what risk exists
   - If `Opportunity`: what could be better and why it is worth doing now
 - Evidence (paths + commands)
-- Proposed solution (directional, not over-designed)
+- Proposed solution (directional, not over-designed). If proposing an architectural refactor (pattern/lifecycle/async), include:
+  - 2–3 options with trade-offs (including “do nothing” if appropriate)
+  - a migration plan (pilot → incremental rollout → cleanup)
+  - a measurable success signal (runtime, testability, coupling reduction, defect class eliminated)
+
+Extra guardrail: if the proposal is primarily “decouple from framework X” or “introduce pattern Y”, it must cite a concrete driver (current pain, measurable limitation, or an upcoming planned change). If no driver is found, drop it (or downgrade to `P2`/`BAR=low` exploratory).
 - Success criteria (how to know it’s done)
 - Estimated impact radius (what areas touched)
 - Effort estimate: `S` / `M` / `L` (relative, based on repo conventions and risk)
@@ -136,7 +163,8 @@ Each task must include:
    - `P2` = nice-to-have / opportunistic
    - Tag each finding as `Problem` or `Opportunity` and include a 1-line “why now”.
 4) **Proposed Tasks**: the final curated list (<= `LIMIT`)
-5) **Next Run Suggestions**: what to measure/check next time to track progress
+5) **Previously Identified (Still Open)** (only if `REPEATS=summary`): short list of repeats + pointer to prior item docs + “what changed since last run”
+6) **Next Run Suggestions**: what to measure/check next time to track progress
 
 ### Optional: Write Task Docs (only if `WRITE_DOCS`)
 
