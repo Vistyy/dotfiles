@@ -98,7 +98,7 @@ If `OUTDIR` exists, scan prior runs to avoid duplicating work:
 ### 2) Identify “hotspots” (high churn, high complexity concentration)
 
 Compute top-changed files over `SINCE`:
-- `git log --since="$SINCE" --name-only --pretty=format: | sed '/^$/d' | sort | uniq -c | sort -nr | head -n 30`
+- `git log --since="$$SINCE" --name-only --pretty=format: | sed '/^$/d' | sort | uniq -c | sort -nr | head -n 30`
 
 For the top ~10 candidates, open and inspect:
 - Are these “god modules”, cross-cutting helpers, or unstable interfaces?
