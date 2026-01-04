@@ -35,6 +35,25 @@ Do **not** implement code in this run.
 
 This task is **interactive**: if you need clarification, you MUST ask and wait. It is acceptable that writing `plan.md` happens in a later turn after questions are resolved.
 
+## Related Prompts (Optional)
+
+If you discover that the problem is upstream (bad slicing / missing spec), prefer using:
+- `feature-plan` — when the feature needs re-slicing into work items
+- `work-item-spec` — when `spec.md` is missing/weak and must be repaired before planning
+
+This prompt (`work-item-plan`) is for producing a **code-monkey executable** `plan.md` once the work item is properly specified.
+
+## Spec vs Plan Responsibilities (Non-Negotiable)
+
+This prompt operates at the **work item implementation plan** level.
+
+- `spec.md` may contain **non-blocking** Open Questions (explicitly listed) when they do not affect implementation feasibility.
+- `plan.md` MUST NOT contain open questions that would require the implementer to “figure it out”. If an open question affects any material implementation step, you MUST resolve it before writing `plan.md`.
+
+If you encounter an unresolved decision that impacts the plan:
+- Ask **exactly one** Question Format question (Hard Gate B) and STOP.
+- Do not write or “half-write” `plan.md` with TODOs for the implementer.
+
 ## Plan Clarity Bar (Non-Negotiable)
 
 The plan you write to `plan.md` MUST be clear and specific enough that an implementer can execute it without having to infer missing steps, hunt for “where” something lives, or guess what “good” looks like.
@@ -162,6 +181,17 @@ Then:
 1. Locate `WORK_ITEM_SPEC = WORK_ITEM_DIR/spec.md` and confirm it exists.
 2. If multiple candidates exist, STOP and ask the user to choose the correct one.
 3. Define `WORK_ITEM_PLAN = WORK_ITEM_DIR/plan.md` (this is the file you will create/update).
+
+#### Spec Readiness Check (Required)
+
+If `WORK_ITEM_SPEC` is missing any of the following, treat it as a blocking upstream issue:
+- clear **Scope** (in/out)
+- concrete, checkable **Acceptance Criteria**
+- explicit **Decisions** vs **Open Questions**
+
+In that case, STOP and ask **one** Question Format question:
+- either to run `work-item-spec` first, or
+- to explicitly confirm the missing decision(s) in chat before proceeding.
 
 ### 2. Load Planning Context (Progressive Disclosure)
 
