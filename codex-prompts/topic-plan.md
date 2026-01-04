@@ -10,7 +10,9 @@ $ARGUMENTS
 
 Treat `$ARGUMENTS` as the topic/request to plan.
 
-If `$ARGUMENTS` looks like a readable file path in this repo, read it and treat it as planning context (requirements, constraints, examples). Otherwise treat it as plain text.
+If `$ARGUMENTS` looks like a readable file path in this repo, read it and treat it as a **provisional input** (a hypothesis / idea / guideline), not as source of truth.
+
+You MUST validate or refute it with repo evidence (code/docs reality) before you lock down material decisions. Otherwise treat `$ARGUMENTS` as plain text.
 
 ## Goal
 
@@ -23,6 +25,13 @@ Create a high-confidence, immediately executable plan for the topic by:
 Do **not** implement code in this run.
 
 This task is **interactive**: if you need clarification, you MUST ask and wait. It is acceptable that the final plan is produced in a later turn after questions are resolved.
+
+## Decision Granularity (Non-Negotiable)
+
+This prompt is for planning **disjoint tasks** (not part of the initiative/feature/work-item workflow), e.g. repo improvement items under `docs/improvements/`.
+
+- You MUST lock down enough detail to produce an executable plan (what to change, where, and how to verify).
+- You MUST NOT prematurely lock down decisions that depend on unknown repo context. Treat missing context as an open question or as a discovery step in the plan.
 
 ## Interaction Default (Important)
 
@@ -54,12 +63,25 @@ A decision is **MATERIAL** if it affects any of:
 
 If any material uncertainty exists, you MUST ask the user (one question at a time) before finalizing the plan.
 
+## What counts as “blocking” for the plan
+
+An open question is **BLOCKING** only if it prevents writing a safe, executable plan, for example:
+- we can’t define scope boundaries (in/out)
+- we can’t choose an interface/semantic that determines downstream work
+- we can’t choose a verification strategy (tests vs lint vs manual checks) and that choice impacts what we build
+
+Non-blocking uncertainties MUST be captured explicitly in the final plan under “Open Questions / Assumptions”, but they do not prevent producing a plan.
+
 ## Decision Confirmation Rule (Non-Negotiable)
 
 A material decision is **NOT resolved** unless it is either:
 
-1) Explicitly stated in the provided context (user input or a context file), OR
+1) Confirmed by repo evidence (code/docs reality), OR
 2) Confirmed by the user in this thread (A/B/C or “yes”).
+
+Notes:
+- A context file (e.g., an improvements item) is a useful starting point, but it is NOT automatically evidence.
+- If the context file asserts something factual (“X is broken”, “Y is slow”), you MUST attempt to verify it (or identify what would verify it) before treating it as resolved.
 
 If a material decision would rely on a default, assumption, “common sense”, or guess, it counts as an **open question** and you MUST trigger Hard Gate (B).
 
@@ -87,14 +109,14 @@ Only ask **ONE** question per message. If multiple uncertainties exist, ask abou
 
 Before presenting the final plan, you MUST either:
 
-- (A) State: **“No open questions remain”** and include a small **Decision Confirmation Table**:
+- (A) State: **“No blocking questions remain”** and include a small **Decision Confirmation Table**:
   - Decision
   - Chosen option
   - Source: “user-confirmed in chat” / “provided context file” / “repo evidence”
 
 OR
 
-- (B) STOP and ask **ONE** question (using **Question Format (MANDATORY)**). Do not present the final plan until the user answers.
+- (B) STOP and ask **ONE blocking** question (using **Question Format (MANDATORY)**). Do not present the final plan until the user answers.
 
 ## Execution Steps
 
@@ -113,7 +135,9 @@ If a repository exists (typical case), inspect just enough to choose realistic v
 - Identify project type / build system (e.g., `justfile`, `Makefile`, `package.json`, `pyproject.toml`, `Cargo.toml`, etc.)
 - Identify where changes would likely live (top-level folders, existing modules)
 
-Be evidence-based: cite file paths and commands you ran.
+Be evidence-based: cite file paths and commands you ran, and distinguish clearly between:
+- **Hypotheses** (from the input file / user note)
+- **Observed evidence** (what you verified in the repo)
 
 ### 3) Produce the plan (when Hard Gate A is satisfied)
 
@@ -126,7 +150,9 @@ Verification commands should match the repo’s conventions:
 - Prefer an existing “umbrella” command if present (e.g., `just`, `make`, `npm/pnpm/yarn` scripts).
 - If no standard exists, propose the simplest credible checks (unit tests + lint + a minimal manual smoke test).
 
-End with a short “Done / Verification” checklist.
+End with:
+- a short “Done / Verification” checklist
+- an “Open Questions / Assumptions” section (only non-blocking items)
 
 ### 4) Optional: write it to a file (ONLY if asked)
 
