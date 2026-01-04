@@ -79,7 +79,7 @@ Conditional (initiative-specific) updates:
 
 | Condition | Also Update |
 |-----------|-------------|
-| Initiative has a delivery map | `docs-ai/docs/initiatives/<initiative>/integration/delivery-map.md` (mark the line **DONE** and keep ✅/⛔ unchanged; add ADR link when applicable) |
+| Initiative has a delivery map | `docs-ai/docs/initiatives/delivery-map.md` (mark the line **DONE** and keep ✅/⛔ unchanged; add ADR link when applicable) |
 
 Conditional updates:
 
