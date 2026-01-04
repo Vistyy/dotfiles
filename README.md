@@ -10,6 +10,7 @@ Personal dotfiles and scripts.
   - `rm-worktree` - Remove git worktree and cleanup
 
 - **codex-prompts/** - AI assistant prompts for code review and quality
+- **codex-skills/** - Codex personal skills (symlinked into `~/.codex/skills`)
 
 ## Install
 
@@ -18,3 +19,5 @@ Personal dotfiles and scripts.
 ```
 
 Creates symlinks in `~/.local/bin` and `~/.codex/prompts`.
+
+Also creates symlinks in `~/.codex/skills`.
