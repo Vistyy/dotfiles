@@ -54,6 +54,12 @@ If you encounter an unresolved decision that impacts the plan:
 - Ask **exactly one** Question Format question (Hard Gate B) and STOP.
 - Do not write or “half-write” `plan.md` with TODOs for the implementer.
 
+## Documentation Stewardship (Non-Negotiable)
+
+After Hard Gate (A) is satisfied and before making any edits under `docs-ai/docs/`, you MUST use the `documentation-stewardship` skill and follow its “STOP - Before You Edit” checklist.
+
+If `documentation-stewardship` conflicts with this prompt, you MUST treat that as a blocking issue and ask the user for clarification before editing.
+
 ## Plan Clarity Bar (Non-Negotiable)
 
 The plan you write to `plan.md` MUST be clear and specific enough that an implementer can execute it without having to infer missing steps, hunt for “where” something lives, or guess what “good” looks like.

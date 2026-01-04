@@ -55,8 +55,14 @@ If you have not asked the user at least one question in this thread, you must no
 
 Do NOT paste full `overview.md` content in chat.
 
-- In chat: provide only a brief outline (max 10 bullets), plus the required **Decision Confirmation Table** when asserting **“No open questions remain”**, plus the single pending question (if any).
+- In chat: provide only a brief outline (max 10 bullets), plus the required **Decision Confirmation Table** when asserting **“No blocking questions remain”**, plus the single pending question (if any).
 - Write changes directly to the initiative `overview.md` only after Hard Gate (A) is satisfied.
+
+## Documentation Stewardship (Non-Negotiable)
+
+After Hard Gate (A) is satisfied and before making any edits under `docs-ai/docs/`, you MUST use the `documentation-stewardship` skill and follow its “STOP - Before You Edit” checklist.
+
+If `documentation-stewardship` conflicts with this prompt, you MUST treat that as a blocking issue and ask the user for clarification before editing.
 
 ## What counts as “material uncertainty”
 
@@ -157,3 +163,12 @@ Update `INITIATIVE_OVERVIEW` to make it coherent and complete:
 Keep it concise; link to deeper docs instead of duplicating details.
 
 If roadmap status or initiative listings are inconsistent, propose the minimal consistent change set and (if needed) update `docs-ai/docs/roadmap.md` as part of the same change.
+
+## Cross-Doc Impact (Non-Negotiable)
+
+When you edit an initiative doc, you MUST check and update any directly affected documents, not just the single file you started from. Typical impacted docs include:
+- `docs-ai/docs/roadmap.md` initiative table + status lines
+- the initiative `overview.md` feature map vs the actual `features/` folders
+- any initiative-level integration docs (when they exist)
+
+Prefer links over duplication, and remove/replace outdated text rather than appending competing guidance.

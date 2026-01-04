@@ -139,6 +139,8 @@ Be evidence-based: cite file paths and commands you ran, and distinguish clearly
 - **Hypotheses** (from the input file / user note)
 - **Observed evidence** (what you verified in the repo)
 
+If your plan involves editing files under `docs-ai/docs/`, you MUST use the `documentation-stewardship` skill before making those edits.
+
 ### 3) Produce the plan (when Hard Gate A is satisfied)
 
 Output the plan in chat as a numbered sequence of **Tasks**. Each Task must include:

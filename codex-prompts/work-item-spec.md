@@ -76,6 +76,12 @@ Do NOT paste full `spec.md` content in chat.
 - In chat: provide only a brief outline (max 10 bullets), plus the required **Decision Confirmation Table** when asserting **“No blocking questions remain”**, plus the single pending question (if any).
 - Write changes to `spec.md` only after Hard Gate (A) is satisfied.
 
+## Documentation Stewardship (Non-Negotiable)
+
+After Hard Gate (A) is satisfied and before making any edits under `docs-ai/docs/`, you MUST use the `documentation-stewardship` skill and follow its “STOP - Before You Edit” checklist.
+
+If `documentation-stewardship` conflicts with this prompt, you MUST treat that as a blocking issue and ask the user for clarification before editing.
+
 ## Plan-ability Bar (Non-Negotiable)
 
 The `spec.md` MUST be specific enough that `work-item-plan` can produce an executable `plan.md` without guessing:

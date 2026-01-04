@@ -58,8 +58,14 @@ If you have not asked the user at least one question in this thread, you must no
 
 Do NOT paste full `overview.md` / `design.md` content in chat.
 
-- In chat: provide only a brief outline (max 10 bullets), plus the required **Decision Confirmation Table** when asserting **“No open questions remain”**, plus the single pending question (if any).
+- In chat: provide only a brief outline (max 10 bullets), plus the required **Decision Confirmation Table** when asserting **“No blocking questions remain”**, plus the single pending question (if any).
 - Write changes to feature docs only after Hard Gate (A) is satisfied.
+
+## Documentation Stewardship (Non-Negotiable)
+
+After Hard Gate (A) is satisfied and before making any edits under `docs-ai/docs/`, you MUST use the `documentation-stewardship` skill and follow its “STOP - Before You Edit” checklist.
+
+If `documentation-stewardship` conflicts with this prompt, you MUST treat that as a blocking issue and ask the user for clarification before editing.
 
 ## Work Items Table Convention (Non-Negotiable)
 
@@ -171,11 +177,18 @@ If multiple candidates exist, STOP and ask the user to choose the correct one.
 
 ### 3) Shape the feature + slice into work items (when Hard Gate A is satisfied)
 
+## Integration Placement Rule (Non-Negotiable)
+
+When writing about integration:
+- Feature `overview.md` should contain only feature-specific integration points and must be brief.
+- Integration guidance that spans **2+ features** must live at the initiative level under `docs-ai/docs/initiatives/<initiative>/integration/` (create/update an `overview.md` index there if needed), and feature docs must link to it.
+- Do not “smuggle” cross-cutting integration architecture into a single feature overview.
+
 Update `FEATURE_OVERVIEW` to include:
 - Goal
 - Work Items table (the sliced queue)
 - Integration points (links, not duplicated specs)
- - Open Questions (explicit list, when useful)
+- Open Questions (explicit list, when useful)
 
 Update `FEATURE_DESIGN` only when needed to capture material decisions and rationale.
 
@@ -189,3 +202,12 @@ Work item slicing requirements:
   - status
 
 End by stating which work item should be specified next via `work-item-spec`.
+
+## Cross-Doc Impact (Non-Negotiable)
+
+When you edit a feature doc, you MUST check and update any directly affected documents, not just the single file you started from. Typical impacted docs include:
+- initiative `overview.md` (feature list/status consistency)
+- other feature docs that link to or depend on your updated interfaces/decisions
+- initiative-level integration docs when the integration story becomes cross-cutting
+
+Prefer links over duplication, and remove/replace outdated text rather than appending competing guidance.
