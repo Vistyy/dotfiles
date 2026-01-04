@@ -12,7 +12,7 @@ codex-skills/<skill-name>/SKILL.md
 
 ## Install
 
-Run `./install.sh` to symlink each `codex-skills/<skill-name>` directory into `~/.codex/skills/<skill-name>`.
+Run `./install.sh` to sync each `codex-skills/<skill-name>` directory into `~/.codex/skills/<skill-name>`.
 
 ## Editing
 

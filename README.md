@@ -10,7 +10,7 @@ Personal dotfiles and scripts.
   - `rm-worktree` - Remove git worktree and cleanup
 
 - **codex-prompts/** - AI assistant prompts for code review and quality
-- **codex-skills/** - Codex personal skills (symlinked into `~/.codex/skills`)
+- **codex-skills/** - Codex personal skills (installed into `~/.codex/skills`)
 
 ## Install
 

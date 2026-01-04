@@ -4,11 +4,19 @@ DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
 mkdir -p ~/.local/bin ~/.codex/prompts ~/.codex/skills
 
 for script in "$DOTFILES_DIR"/bin/*; do
-  ln -sf "$script" ~/.local/bin/
+  target="$HOME/.local/bin/$(basename "$script")"
+  if [ -e "$target" ] && [ "$script" -ef "$target" ]; then
+    continue
+  fi
+  ln -sf "$script" "$target"
 done
 
 for prompt in "$DOTFILES_DIR"/codex-prompts/*; do
-  ln -sf "$prompt" ~/.codex/prompts/
+  target="$HOME/.codex/prompts/$(basename "$prompt")"
+  if [ -e "$target" ] && [ "$prompt" -ef "$target" ]; then
+    continue
+  fi
+  ln -sf "$prompt" "$target"
 done
 
 for skill_dir in "$DOTFILES_DIR"/codex-skills/*; do
@@ -18,12 +26,21 @@ for skill_dir in "$DOTFILES_DIR"/codex-skills/*; do
 
   target="$HOME/.codex/skills/$(basename "$skill_dir")"
 
-  if [ -e "$target" ] && [ ! -L "$target" ]; then
-    echo "Skipping skill (target exists and is not a symlink): $target"
-    continue
+  # Codex skill discovery may treat a symlink-to-dir as "not a directory" when
+  # enumerating skills. Install as a real directory instead of a directory
+  # symlink.
+  if [ -L "$target" ]; then
+    rm -f "$target"
   fi
 
-  ln -snf "$skill_dir" "$target"
+  mkdir -p "$target"
+
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a --delete "$skill_dir"/ "$target"/
+  else
+    rm -rf "$target"/*
+    cp -a "$skill_dir"/. "$target"/
+  fi
 done
 
 echo "Dotfiles installed"
