@@ -35,6 +35,17 @@ Do **not** implement code in this run.
 
 This task is **interactive**: if you need clarification, you MUST ask and wait. It is acceptable that writing `plan.md` happens in a later turn after questions are resolved.
 
+## Interaction Default (Important)
+
+Default behavior is **ledger-then-question**:
+
+- In your **first** response, you MUST:
+  1. Provide the **Context Read Ledger** (docs read + delivery-map wave/related slugs + related work-item specs opened), THEN
+  2. Ask **ONE** question using **Question Format (MANDATORY)**.
+- Only skip the initial question if the user explicitly says “skip questions” / “assume defaults”.
+
+If you have not asked the user at least one question in this thread, you must not write `plan.md` yet.
+
 ## Related Prompts (Optional)
 
 If you discover that the problem is upstream (bad slicing / missing spec), prefer using:
@@ -145,6 +156,8 @@ While you are waiting for the user to answer your pending Question Format questi
 
 This format is **ONLY** for questions **you** ask the user in order to proceed (i.e., when you need the user to make a choice or confirm a decision).
 
+You MUST NOT ask your first **Question Format** question until after you have completed the **Context Read Ledger** (see Execution Step 2).
+
 If the **user asks you a clarifying question**, you MUST answer it directly in normal prose (do **not** wrap your answer in Question Format). After answering, if you still need a user decision, re-ask your pending **single** decision question using Question Format.
 
 Whenever you need to ask the user a question, you MUST:
@@ -187,6 +200,9 @@ Then:
 1. Locate `WORK_ITEM_SPEC = WORK_ITEM_DIR/spec.md` and confirm it exists.
 2. If multiple candidates exist, STOP and ask the user to choose the correct one.
 3. Define `WORK_ITEM_PLAN = WORK_ITEM_DIR/plan.md` (this is the file you will create/update).
+4. If `WORK_ITEM_DIR` lives under `docs-ai/docs/initiatives/<initiative>/features/<feature>/work-items/<work-item>/`, also define:
+   - `FEATURE_DIR = docs-ai/docs/initiatives/<initiative>/features/<feature>/`
+   - `INITIATIVE_DIR = docs-ai/docs/initiatives/<initiative>/`
 
 #### Spec Readiness Check (Required)
 
@@ -201,7 +217,35 @@ In that case, STOP and ask **one** Question Format question:
 
 ### 2. Load Planning Context (Progressive Disclosure)
 
-Read `WORK_ITEM_SPEC` first, then only load additional context as needed to settle uncertainties.
+You MUST read `WORK_ITEM_SPEC` first.
+
+Then you MUST locate and read the *parent* docs that define the work item’s boundaries and integration context:
+
+- **Parent Feature docs** (required when they exist):
+  - `FEATURE_DIR/overview.md`
+  - `FEATURE_DIR/design.md`
+- **Parent Initiative docs** (required when they exist):
+  - `INITIATIVE_DIR/overview.md`
+  - `INITIATIVE_DIR/integration/overview.md` (or, if missing, scan `INITIATIVE_DIR/integration/` for the relevant integration docs)
+- **Delivery map** (required when it exists):
+  - Prefer `docs-ai/docs/initiatives/delivery-map.md`, otherwise try `docs-ai/initiatives/delivery-map.md`
+  - You MUST identify the wave/section that this work item belongs to, and list the other work-item slugs in that same wave/section as “Related (same wave)”.
+
+“Locate” means: derive the parent directories from the work-item path **or** use repo search to find them. If you cannot unambiguously identify the parent feature and initiative, STOP and ask the user to choose the correct parent(s) using **Question Format (MANDATORY)**.
+
+Then, you MUST load *directly related* lower-level docs:
+
+- **Related work items**: if `WORK_ITEM_SPEC` (or parent docs) link to other work items, you MUST open those work item `spec.md` files too (at minimum, read the Scope/Acceptance Criteria/Decisions sections).
+- **Cross-cutting integration**: if this work item changes integration behavior that spans 2+ features, you MUST read the relevant initiative integration doc(s) first and treat them as the source of truth; the work-item plan must link to them rather than reinventing them.
+- **Same wave**: if `delivery-map.md` lists other work items in the same wave/section, you MUST read those work item `spec.md` files too (at minimum, read Scope/Acceptance Criteria/Decisions) to ensure the plan is compatible and sequenced correctly.
+
+#### Context Read Ledger (Required)
+
+Before Step 3, you MUST provide a **Context Read Ledger** in chat that includes:
+
+1. **Docs read**: file paths only, plus a 1-line note for each about why it matters (do NOT paste contents).
+2. **Delivery map placement** (when `delivery-map.md` exists): the wave/section you matched, plus a short “Related (same wave)” list of work-item slugs.
+3. **Related work-item specs opened**: list the work-item `spec.md` paths you opened (including “same wave” work items).
 
 ### 3. Settle Implementation Details and Uncertainties
 

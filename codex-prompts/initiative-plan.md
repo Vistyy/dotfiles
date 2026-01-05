@@ -44,9 +44,11 @@ If you encounter lower-level uncertainty, record it explicitly as an **Open Ques
 
 ## Interaction Default (Important)
 
-Default behavior is **question-first**:
+Default behavior is **ledger-then-question**:
 
-- In your **first** response, ask **ONE** question using **Question Format (MANDATORY)**.
+- In your **first** response, you MUST:
+  1. Provide the **Context Read Ledger** (file paths only, plus 1-line “why this matters” per doc), THEN
+  2. Ask **ONE** question using **Question Format (MANDATORY)**.
 - Only skip the initial question if the user explicitly says “skip questions” / “go straight to updates” / “assume defaults”.
 
 If you have not asked the user at least one question in this thread, you must not edit docs yet.
@@ -110,6 +112,8 @@ OR
 
 Use this format ONLY for questions you ask the user to proceed.
 
+You MUST NOT ask your first **Question Format** question until after you have completed the **Context Read Ledger** (see Execution Step 2).
+
 ```md
 **Question:** <the single question you need answered>
 
@@ -145,9 +149,18 @@ If multiple candidates exist, STOP and ask the user to choose the correct one.
 
 1. Read `docs-ai/docs/roadmap.md` first.
 2. Read `INITIATIVE_OVERVIEW` (if it exists).
-3. Inspect `INITIATIVE_DIR/features/` (feature list) and compare to:
+3. Inspect initiative-level integration docs (when they exist) before making cross-cutting claims:
+   - `INITIATIVE_DIR/integration/overview.md` (or, if missing, scan `INITIATIVE_DIR/integration/`)
+4. Inspect `INITIATIVE_DIR/features/` (feature list) and compare to:
    - the initiative overview feature table (if present)
    - the initiative table in `roadmap.md`
+5. Read feature-level docs as needed to validate the feature map and integration story:
+   - At minimum, open `overview.md` for every feature whose row/status/scope you modify.
+   - If you touch integration/dependencies, also open the relevant feature `design.md` (when it exists) or any linked ADRs.
+
+#### Context Read Ledger (Required)
+
+In your first response, include a short “Context Read” list (file paths only) for the docs you actually opened. Do NOT paste doc contents.
 
 ### 3) Produce initiative updates (when Hard Gate A is satisfied)
 

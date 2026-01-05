@@ -47,9 +47,11 @@ Lower-level detail belongs in the work item `spec.md` and the `plan.md` generate
 
 ## Interaction Default (Important)
 
-Default behavior is **question-first**:
+Default behavior is **ledger-then-question**:
 
-- In your **first** response, ask **ONE** question using **Question Format (MANDATORY)**.
+- In your **first** response, you MUST:
+  1. Provide the **Context Read Ledger** (file paths only, plus 1-line “why this matters” per doc), THEN
+  2. Ask **ONE** question using **Question Format (MANDATORY)**.
 - Only skip the initial question if the user explicitly says “skip questions” / “assume defaults”.
 
 If you have not asked the user at least one question in this thread, you must not edit docs yet.
@@ -136,6 +138,8 @@ OR
 
 Use this format ONLY for questions you ask the user to proceed.
 
+You MUST NOT ask your first **Question Format** question until after you have completed the **Context Read Ledger** (see Execution Step 2).
+
 ```md
 **Question:** <the single question you need answered>
 
@@ -165,15 +169,27 @@ Resolve `$ARGUMENTS` to a single `FEATURE_DIR`:
 Then define:
 - `FEATURE_OVERVIEW = FEATURE_DIR/overview.md`
 - `FEATURE_DESIGN = FEATURE_DIR/design.md`
+- `INITIATIVE_DIR = docs-ai/docs/initiatives/<initiative>/`
+- `INITIATIVE_OVERVIEW = INITIATIVE_DIR/overview.md`
 
 If multiple candidates exist, STOP and ask the user to choose the correct one.
 
 ### 2) Load minimal context (progressive disclosure)
 
 1. Read `docs-ai/docs/roadmap.md` first.
-2. Read the initiative `overview.md` for context.
-3. Read `FEATURE_OVERVIEW` and `FEATURE_DESIGN` if they exist.
-4. Scan `FEATURE_DIR/work-items/` (existing work-item slugs) and compare to the Work Items table.
+2. Read `INITIATIVE_OVERVIEW` (if it exists) for context.
+3. Read initiative-level integration docs (when they exist) so you don’t duplicate cross-cutting guidance:
+   - `INITIATIVE_DIR/integration/overview.md`
+   - Any linked integration docs that mention this feature or its interfaces
+4. Read `FEATURE_OVERVIEW` and `FEATURE_DESIGN` if they exist.
+5. Scan `FEATURE_DIR/work-items/` (existing work-item slugs) and compare to the Work Items table.
+6. If any work-item folders already exist, you MUST read the `spec.md` for:
+   - any work items that are `in-progress` / `done` (to avoid re-slicing already-shipped boundaries), and
+   - any work items referenced by `FEATURE_OVERVIEW`, `FEATURE_DESIGN`, or initiative integration docs.
+
+#### Context Read Ledger (Required)
+
+In your first response, include a short “Context Read” list (file paths only) for the docs you actually opened. Do NOT paste doc contents.
 
 ### 3) Shape the feature + slice into work items (when Hard Gate A is satisfied)
 

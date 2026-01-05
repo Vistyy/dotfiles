@@ -33,9 +33,11 @@ This task is **interactive**: if you need clarification, you MUST ask and wait.
 
 ## Interaction Default (Important)
 
-Default behavior is **question-first**:
+Default behavior is **ledger-then-question**:
 
-- In your **first** response, ask **ONE** question using **Question Format (MANDATORY)**.
+- In your **first** response, you MUST:
+  1. Provide the **Context Read Ledger** (docs read + delivery-map wave/related slugs + related work-item specs opened), THEN
+  2. Ask **ONE** question using **Question Format (MANDATORY)**.
 - Only skip the initial question if the user explicitly says “skip questions” / “assume defaults”.
 
 If you have not asked the user at least one question in this thread, you must not write `spec.md` yet.
@@ -139,6 +141,8 @@ OR
 
 Use this format ONLY for questions you ask the user to proceed.
 
+You MUST NOT ask your first **Question Format** question until after you have completed the **Context Read Ledger** (see Execution Step 2).
+
 ```md
 **Question:** <the single question you need answered>
 
@@ -167,17 +171,54 @@ Resolve `$ARGUMENTS` to a single `WORK_ITEM_DIR`:
 
 Then define:
 - `WORK_ITEM_SPEC = WORK_ITEM_DIR/spec.md`
-- `FEATURE_OVERVIEW = docs-ai/docs/initiatives/<initiative>/features/<feature>/overview.md`
+- If `WORK_ITEM_DIR` lives under `docs-ai/docs/initiatives/<initiative>/features/<feature>/work-items/<work-item>/`, also define:
+  - `FEATURE_DIR = docs-ai/docs/initiatives/<initiative>/features/<feature>/`
+  - `INITIATIVE_DIR = docs-ai/docs/initiatives/<initiative>/`
+  - `FEATURE_OVERVIEW = FEATURE_DIR/overview.md`
+  - `FEATURE_DESIGN = FEATURE_DIR/design.md`
+  - `INITIATIVE_OVERVIEW = INITIATIVE_DIR/overview.md`
 
 If multiple candidates exist, STOP and ask the user to choose the correct one.
 
 ### 2) Load minimal context (progressive disclosure)
 
-Read in this order:
+You MUST read `WORK_ITEM_SPEC` first if it already exists (to avoid rewriting intent).
+
+If you did not derive `FEATURE_DIR` / `INITIATIVE_DIR` from the work-item path (e.g., `$ARGUMENTS` is an external link or a non-standard path), you MUST locate the correct parent feature and initiative using repo search, then define:
+- `FEATURE_DIR`, `INITIATIVE_DIR`, `FEATURE_OVERVIEW`, `FEATURE_DESIGN`, `INITIATIVE_OVERVIEW`
+
+Then read in this order (when files exist):
+
 1. `docs-ai/docs/roadmap.md`
-2. initiative `overview.md`
-3. feature `overview.md` (and `design.md` if needed)
-4. any referenced ADR/design links from those docs
+2. `docs-ai/docs/initiatives/delivery-map.md` (if it exists), otherwise try `docs-ai/initiatives/delivery-map.md`
+   - You MUST find the wave/section that this work item belongs to (or the closest matching initiative/feature section).
+   - You MUST list the other work-item slugs in the same wave/section as “Related (same wave)”.
+3. `INITIATIVE_OVERVIEW`
+4. Initiative-level integration docs (to avoid duplicating cross-cutting guidance):
+   - `INITIATIVE_DIR/integration/overview.md` (or, if missing, scan `INITIATIVE_DIR/integration/`)
+   - any linked integration docs that mention this feature or its interfaces
+5. `FEATURE_OVERVIEW`
+6. `FEATURE_DESIGN` (when needed to answer “what are we building” / boundaries / invariants)
+7. Any referenced ADR/design links from the above docs that constrain scope or acceptance criteria
+
+Then load *directly related* work-item specs:
+
+- **Related work items**: if the feature/initiative docs (or an existing `WORK_ITEM_SPEC`) link to other work items, you MUST open those work item `spec.md` files too (at minimum, read Scope/Acceptance Criteria/Decisions).
+- **Neighboring changes**: if this work item touches a shared interface (API/contract/schema/integration), you MUST identify and read the closest adjacent work item(s) that last changed that interface (use repo search and recent commits when needed).
+- **Same wave**: if `delivery-map.md` lists other work items in the same wave/section, you MUST at least acknowledge those slugs in your ledger, and you MUST read the `spec.md` for any “same wave” work item that:
+  - touches the same interface boundary, OR
+  - is a stated dependency/prerequisite, OR
+  - would be invalidated by your scope/acceptance criteria.
+
+If you cannot unambiguously identify the correct parent feature and initiative, STOP and ask the user to choose using **Question Format (MANDATORY)**.
+
+#### Context Read Ledger (Required)
+
+In your first response, include a **Context Read Ledger** with:
+
+1. **Docs read**: file paths only, plus 1-line “why this matters” per doc (do NOT paste contents).
+2. **Delivery map placement** (when `delivery-map.md` exists): the wave/section you matched, plus a short “Related (same wave)” list of work-item slugs.
+3. **Related work-item specs opened**: list the work-item `spec.md` paths you opened (if any).
 
 ### 3) Write/update spec.md (when Hard Gate A is satisfied)
 
