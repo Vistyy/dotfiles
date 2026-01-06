@@ -71,6 +71,8 @@ After Hard Gate (A) is satisfied and before making any edits under `docs-ai/docs
 
 If `documentation-stewardship` conflicts with this prompt, you MUST treat that as a blocking issue and ask the user for clarification before editing.
 
+When you write `plan.md`, you MUST explicitly restate this rule in the plan (e.g., in an “Execution Rules” section and/or in any Task that touches `docs-ai/docs/`).
+
 ## Plan Clarity Bar (Non-Negotiable)
 
 The plan you write to `plan.md` MUST be clear and specific enough that an implementer can execute it without having to infer missing steps, hunt for “where” something lives, or guess what “good” looks like.
@@ -90,10 +92,14 @@ Your `plan.md` MUST be written as a sequence of numbered **Tasks** that can be e
 
 **Requirements:**
 
-- Each Task MUST end with a **Task Verification** block that includes exact commands to run and expected outcome (`PASS` / “green”).
-  - Minimum required command after **every** Task: `just quality`
-  - Add any task-specific verification commands as needed (tests, migrations, local run, etc.).
-- **Execution rule (must be stated in plan.md):** after finishing each Task, run `just quality` (and any task-specific verification) and ensure it is green before starting the next Task.
+- Each Task MUST end with a **Task Verification** block that includes exact commands to run and the expected outcome (`PASS` / “green” / expected `FAIL`).
+  - Choose the *lightest* verification that matches the Task’s intent (don’t cargo-cult full-suite checks on every step).
+  - If the Task is a **GREEN checkpoint** (repo should be healthy / ready to proceed), the verification MUST include `just quality` and it MUST be green before starting the next Task.
+  - If the Task is intentionally **RED** (an intermediate step that may leave tests failing), the verification MUST make that explicit (expected `FAIL`) and MUST NOT require `just quality` until a later Task returns the repo to green.
+  - For non-code Tasks (docs-only, refactoring notes, etc.), do not require `just quality` by default; prefer doc-appropriate verification when available (docs build, markdown lint, link check, etc.).
+- **Execution rules (must be stated in plan.md):**
+  - After each Task, run the Task Verification commands and ensure the result matches the stated expectation.
+  - Run `just quality` at each GREEN checkpoint and always at the very end before committing.
 - **Commit rule (must be stated in plan.md):** do **not** commit after each Task. Make **one** commit at the very end, after all Tasks are complete and `just quality` is green.
   - Final completion (example): `git status` → `just quality` → `git add -A && git commit -m "<work item>: <short summary>"`
 
@@ -272,8 +278,11 @@ If `plan.md` already exists, update it rather than starting over; preserve any c
 Before writing/updating `WORK_ITEM_PLAN`, do a task “fit” pass:
 
 - Every Task has a clear “Outcome/Deliverable” statement.
-- Every Task ends with **Task Verification** commands (exact commands, expected PASS), including `just quality`.
+- Every Task ends with **Task Verification** commands (exact commands, expected outcome).
+- Any **GREEN checkpoint** Task includes `just quality` with an expected `PASS` outcome.
+- Any intentionally **RED** Task clearly states the expected `FAIL` outcome and there is a later GREEN checkpoint that returns the repo to green.
 - The plan includes a final “Done / Verification” checklist that re-runs `just quality` and ends with a single commit.
+- The plan explicitly restates the Documentation Stewardship rule for edits under `docs-ai/docs/`.
 - No Task requires “figure out what to do next”; each has atomic steps with file paths.
 
 After writing/updating `WORK_ITEM_PLAN`, do NOT paste or preview its contents in chat. In chat, only confirm that `plan.md` was written and provide a brief outline (max 10 bullets).
