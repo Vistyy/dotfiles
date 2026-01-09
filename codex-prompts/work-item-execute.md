@@ -23,7 +23,7 @@ Execute an already-written `plan.md` for the referenced work item by:
 
 1. Locating the correct `WORK_ITEM_DIR` and its `plan.md`
 2. Loading and critically reviewing `plan.md` for gaps/risks before starting
-3. Using the `superpowers:executing-plans` skill to implement the plan’s Tasks in order, in batches with review checkpoints
+3. Using the `superpowers:executing-plans` skill to implement the plan’s Tasks in order, end-to-end (checkpoints are for reporting, not approval gates)
 4. Running every verification command specified by the plan (including `just quality` after each Task when the plan requires it)
 5. Stopping to ask for clarification instead of guessing when the plan is ambiguous or verification fails repeatedly
 
@@ -41,15 +41,17 @@ If `$ARGUMENTS` is empty, STOP and ask for the work item slug/path.
 - You MUST treat `plan.md` as the single source of truth for what to implement and how to verify it.
 - You MUST use `superpowers:executing-plans` before implementing.
 - You MUST follow Tasks in order and run the plan’s verification steps exactly.
+- You MUST assume “proceed by default”: do not pause and wait for approval between Tasks or checkpoints unless the user explicitly asks you to.
 - If any Task instruction is unclear, missing required file paths, or cannot be executed safely, STOP and ask the user.
 - If the plan includes instructions to use other skills (e.g., documentation stewardship), you MUST invoke and follow them at the moment they become relevant.
 
 ## Interaction Default (Important)
 
-This prompt is **checkpointed**:
+This prompt is **checkpointed** for reporting only (not approval-gated):
 
-- Before starting implementation, present a brief **Plan Review** (risks/concerns only) and confirm you are ready to start Task 1.
-- Execute Tasks in batches (default batch size: 3 Tasks), then STOP and report results + verification output and wait for feedback.
+- Before starting implementation, present a brief **Plan Review** (risks/concerns only), then start Task 1 immediately.
+- Execute Tasks in batches (default batch size: 3 Tasks) and report results + verification output after each batch, then continue to the next batch automatically.
+- The only times you should STOP are: you need clarification, verification fails repeatedly, you hit a safety issue, or the user explicitly requests a pause.
 
 ## Execution Steps
 
@@ -87,15 +89,15 @@ In particular:
 - Create an `update_plan` checklist that mirrors the plan’s numbered Tasks
 - Execute the first batch (default: first 3 Tasks) exactly as written
 - Run the plan’s verification commands for each Task and ensure they pass before moving to the next Task
+- Continue executing subsequent batches automatically until the entire plan is complete (do not wait for approval at checkpoints unless the user requests a pause)
 
 ### 4) Checkpoint reporting
 
 After completing each batch:
 - Summarize what changed (files/systems touched, high-level behavior only)
 - Include the verification outputs/results required by the plan
-- Ask for feedback and wait before continuing to the next batch
+- Ask for feedback (but keep going unless the user asks you to pause)
 
 ### 5) Finish
 
 After all Tasks are complete and all verifications are green, follow the `superpowers:executing-plans` guidance for completion (including using `superpowers:finishing-a-development-branch` when appropriate).
-
