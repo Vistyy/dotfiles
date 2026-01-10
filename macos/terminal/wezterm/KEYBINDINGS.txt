@@ -1,12 +1,29 @@
-WezTerm keybindings (custom)
+Terminal cheatsheet (WezTerm + tmux)
 
-Splits:
-  Cmd+d           Split horizontally
-  Cmd+Shift+d     Split vertically
-  Cmd+Shift+t     New tab (uses current cwd)
+WezTerm (macOS):
+  Cmd+Shift+h     Help (this screen)
+  Cmd+Shift+r     Reload WezTerm config (shows toast)
+  Cmd+Shift+t     New WezTerm tab (uses current cwd)
 
-Pane navigation (leader = Ctrl+a):
-  Ctrl+a then h/j/k/l    Move between panes
+tmux-first shortcuts (via WezTerm; persistent across reattach):
+  Cmd+d           tmux split (left/right)
+  Cmd+Shift+d     tmux split (top/bottom)
+  Cmd+Alt+i/j/k/l Move between tmux panes (up/left/down/right)
+  Cmd+Alt+Arrows  Move between tmux panes
+  Cmd+t           tmux new window
+  Cmd+[           tmux previous window
+  Cmd+]           tmux next window
+  Cmd+w           tmux kill pane (no confirm) / else close WezTerm tab (confirm)
+  Cmd+Shift+w     tmux kill window (confirm) / else close WezTerm tab (confirm)
+
+tmux essentials (works in any client: SSH/phone/WezTerm):
+  Prefix          Ctrl+b
+  Windows         Prefix+c (new), Prefix+n/p (next/prev), Prefix+w (list), Prefix+1..9 (jump)
+  Panes           Prefix+% (L/R split), Prefix+" (T/B split), Prefix+o (next pane), Prefix+arrows (move)
+  Kill            Prefix+x (kill pane, no confirm), Prefix+& (kill window, confirm)
+  Detach          Prefix+d
+
+WezTerm leader (Ctrl+a):
   Ctrl+a then r          Reload config
   Ctrl+a then [          Copy mode (scrollback selection)
   Ctrl+a then /          Search scrollback
@@ -15,19 +32,13 @@ Pane navigation (leader = Ctrl+a):
   Ctrl+a then ,          Rename tab
 
 Help:
-  Ctrl+a then Shift+h    Open this help
-  Cmd+Shift+h            Open this help
+  Ctrl+a then Shift+h    Help (this screen)
 
-Reload:
-  Cmd+Shift+r            Reload config
-  Cmd+Alt+r              Reload config
+Reload (alternate):
+  Cmd+Alt+r              Reload WezTerm config (shows toast)
 
 Debug:
   Cmd+Alt+D              Show debug overlay
-
-Pane navigation (direct):
-  Cmd+Alt+h/j/k/l        Move between panes
-  Cmd+Alt+Arrows         Move between panes
 
 Multiline input:
   Shift+Enter            Insert newline without running the command

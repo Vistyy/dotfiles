@@ -63,23 +63,70 @@ local function prompt_rename_tab()
   }
 end
 
-config.keys = {
-  { key = "d", mods = "CMD", action = act.SplitHorizontal { domain = "CurrentPaneDomain" } },
-  { key = "d", mods = "CMD|SHIFT", action = act.SplitVertical { domain = "CurrentPaneDomain" } },
+local function reload_config_with_toast()
+  return wezterm.action_callback(function(window, pane)
+    window:toast_notification("WezTerm", "Reloading configuration…", nil, 1500)
+    window:perform_action(act.ReloadConfiguration, pane)
+  end)
+end
 
-  -- Pane navigation
-  { key = "h", mods = "LEADER", action = act.ActivatePaneDirection "Left" },
-  { key = "j", mods = "LEADER", action = act.ActivatePaneDirection "Down" },
-  { key = "k", mods = "LEADER", action = act.ActivatePaneDirection "Up" },
-  { key = "l", mods = "LEADER", action = act.ActivatePaneDirection "Right" },
-  { key = "h", mods = "CMD|ALT", action = act.ActivatePaneDirection "Left" },
-  { key = "j", mods = "CMD|ALT", action = act.ActivatePaneDirection "Down" },
-  { key = "k", mods = "CMD|ALT", action = act.ActivatePaneDirection "Up" },
-  { key = "l", mods = "CMD|ALT", action = act.ActivatePaneDirection "Right" },
-  { key = "LeftArrow", mods = "CMD|ALT", action = act.ActivatePaneDirection "Left" },
-  { key = "DownArrow", mods = "CMD|ALT", action = act.ActivatePaneDirection "Down" },
-  { key = "UpArrow", mods = "CMD|ALT", action = act.ActivatePaneDirection "Up" },
-  { key = "RightArrow", mods = "CMD|ALT", action = act.ActivatePaneDirection "Right" },
+local function in_tmux(pane)
+  local ok, name = pcall(function()
+    return pane:get_foreground_process_name()
+  end)
+  if not ok or not name then
+    return false
+  end
+  return name:find("tmux", 1, true) ~= nil
+end
+
+local function tmux_or_fallback(tmux_keys, fallback_action)
+  return wezterm.action_callback(function(window, pane)
+    if in_tmux(pane) then
+      window:perform_action(act.SendString(tmux_keys), pane)
+    else
+      window:perform_action(fallback_action, pane)
+    end
+  end)
+end
+
+local function tmux_prefix_arrow(direction)
+  local seq = nil
+  if direction == "Left" then
+    seq = "\x1b[D"
+  elseif direction == "Down" then
+    seq = "\x1b[B"
+  elseif direction == "Up" then
+    seq = "\x1b[A"
+  elseif direction == "Right" then
+    seq = "\x1b[C"
+  else
+    return act.Nop
+  end
+  return tmux_or_fallback("\x02" .. seq, act.Nop)
+end
+
+config.keys = {
+  -- tmux-first workflow:
+  -- Cmd-based bindings drive tmux so panes/windows persist across reattaches.
+  -- (tmux prefix is Ctrl-b; \x02 is Ctrl-b)
+  { key = "d", mods = "CMD", action = act.SendString "\x02%" },
+  { key = "d", mods = "CMD|SHIFT", action = act.SendString "\x02\"" },
+  { key = "t", mods = "CMD", action = act.SendString "\x02c" },
+  { key = "]", mods = "CMD", action = act.SendString "\x02n" },
+  { key = "[", mods = "CMD", action = act.SendString "\x02p" },
+  { key = "w", mods = "CMD", action = tmux_or_fallback("\x02x", act.CloseCurrentTab { confirm = true }) },
+  { key = "w", mods = "CMD|SHIFT", action = tmux_or_fallback("\x02&", act.CloseCurrentTab { confirm = true }) },
+
+  -- Pane navigation (tmux-first): send prefix+arrows (avoids Meta/Alt quirks)
+  { key = "j", mods = "CMD|ALT", action = tmux_prefix_arrow("Left") },
+  { key = "k", mods = "CMD|ALT", action = tmux_prefix_arrow("Down") },
+  { key = "i", mods = "CMD|ALT", action = tmux_prefix_arrow("Up") },
+  { key = "l", mods = "CMD|ALT", action = tmux_prefix_arrow("Right") },
+  { key = "LeftArrow", mods = "CMD|ALT", action = tmux_prefix_arrow("Left") },
+  { key = "DownArrow", mods = "CMD|ALT", action = tmux_prefix_arrow("Down") },
+  { key = "UpArrow", mods = "CMD|ALT", action = tmux_prefix_arrow("Up") },
+  { key = "RightArrow", mods = "CMD|ALT", action = tmux_prefix_arrow("Right") },
 
   -- Scrollback / copy / search
   { key = "[", mods = "LEADER", action = act.ActivateCopyMode },
@@ -116,8 +163,8 @@ config.keys = {
 
   -- Reload
   { key = "r", mods = "LEADER", action = act.ReloadConfiguration },
-  { key = "r", mods = "CMD|SHIFT", action = act.ReloadConfiguration },
-  { key = "r", mods = "CMD|ALT", action = act.ReloadConfiguration },
+  { key = "r", mods = "CMD|SHIFT", action = reload_config_with_toast() },
+  { key = "r", mods = "CMD|ALT", action = reload_config_with_toast() },
 
   -- Debug
   { key = "D", mods = "CMD|ALT", action = act.ShowDebugOverlay },

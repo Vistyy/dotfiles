@@ -6,6 +6,12 @@
 
 [[ -o interactive ]] || return 0
 
+# Ensure user-level bin dir is on PATH (install.sh/bootstrap-terminal symlink here).
+local_bin="$HOME/.local/bin"
+if [[ -d "$local_bin" && ":$PATH:" != *":$local_bin:"* ]]; then
+  export PATH="$local_bin:$PATH"
+fi
+
 # Shared variables for sub-files.
 export DOTFILES_ZSH_BREW_PREFIX=""
 

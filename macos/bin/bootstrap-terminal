@@ -82,7 +82,7 @@ if [[ -f "$brewfile" ]]; then
   fi
 else
   # Fallback (shouldn't happen): install directly.
-  brew install starship tmux fzf zoxide bat eza fd ripgrep git-delta direnv zsh-autosuggestions zsh-syntax-highlighting
+  brew install starship tmux fzf zoxide bat eza fd ripgrep git-delta gh jq direnv zsh-autosuggestions zsh-syntax-highlighting
   brew install --cask wezterm
   if [[ "$install_fonts" == "true" ]]; then
     brew install --cask font-jetbrains-mono-nerd-font
@@ -125,6 +125,15 @@ link_file "$repo_root/macos/tmux/.tmux.conf" "$HOME/.tmux.conf"
 link_file "$repo_root/macos/starship/starship.toml" "$HOME/.config/starship.toml"
 link_file "$repo_root/macos/terminal/wezterm/wezterm.lua" "$HOME/.config/wezterm/wezterm.lua"
 link_file "$repo_root/macos/terminal/wezterm/KEYBINDINGS.txt" "$HOME/.config/wezterm/KEYBINDINGS.txt"
+
+mkdir -p "$HOME/.local/bin"
+for script in "$repo_root"/macos/bin/*; do
+  base="$(basename "$script")"
+  case "$base" in
+    bootstrap-terminal|_*) continue ;;
+  esac
+  link_file "$script" "$HOME/.local/bin/$base"
+done
 
 xdg_config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
 mkdir -p "$xdg_config_home/zsh"

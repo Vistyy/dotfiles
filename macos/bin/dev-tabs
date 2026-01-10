@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_path="$(python3 - <<'PY' "${BASH_SOURCE[0]}"
+import os, sys
+print(os.path.realpath(sys.argv[1]))
+PY
+)"
+script_dir="$(cd "$(dirname "$script_path")" && pwd)"
+# shellcheck source=macos/bin/_worktree_tmux_lib.sh
+source "$script_dir/_worktree_tmux_lib.sh"
+
+target_dir="${1:-}"
+open_wezterm=true
+run_setup=false
+
+usage() {
+  cat <<'USAGE'
+Usage: dev-tabs [DIR] [OPTIONS]
+
+Creates/repairs the standard tmux layout for the current worktree and opens a
+new WezTerm window attached to that tmux session.
+
+Options:
+  --no-wezterm   Do not open WezTerm
+  --setup        Also create a setup window (uv sync && just q)
+  -h, --help     Show help
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-wezterm) open_wezterm=false; shift ;;
+    --setup) run_setup=true; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *)
+      target_dir="$1"
+      shift
+      ;;
+  esac
+done
+
+if [[ -z "$target_dir" ]]; then
+  if git -C "$PWD" rev-parse --show-toplevel >/dev/null 2>&1; then
+    target_dir="$PWD"
+  else
+    target_dir="$REPO_ROOT"
+  fi
+fi
+
+require_cmd git
+
+branch="$(git -C "$target_dir" symbolic-ref -q --short HEAD || true)"
+[[ -n "$branch" ]] || die "Not on a branch in $target_dir (detached HEAD?)"
+
+session="$(branch_to_session_name "$branch")"
+
+say "==> tmux layout"
+say "    Dir:  $target_dir"
+say "    tmux: $session"
+
+ensure_tmux_layout "$session" "$target_dir" "$run_setup"
+
+if [[ "$open_wezterm" == "true" ]]; then
+  say ""
+  say "==> Opening WezTerm (tmux attach)"
+  open_wezterm_to_tmux_session "$session" "$target_dir"
+fi

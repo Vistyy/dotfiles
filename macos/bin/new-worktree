@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_path="$(python3 - <<'PY' "${BASH_SOURCE[0]}"
+import os, sys
+print(os.path.realpath(sys.argv[1]))
+PY
+)"
+script_dir="$(cd "$(dirname "$script_path")" && pwd)"
+# shellcheck source=macos/bin/_worktree_tmux_lib.sh
+source "$script_dir/_worktree_tmux_lib.sh"
+
+branch=""
+base_branch="$DEFAULT_BASE_BRANCH"
+task_file=""
+open_code=true
+open_wezterm=true
+run_setup=true
+
+usage() {
+  cat <<'USAGE'
+Usage: new-worktree [TASK_FILE] [OPTIONS]
+
+Examples:
+  new-worktree docs-ai/tasks/TODO-foo.md
+  new-worktree --branch feat/my-feature
+  new-worktree docs-ai/tasks/TODO-foo.md --from develop
+
+Options:
+  -b, --branch NAME   Explicit branch name (overrides task derivation)
+  -f, --from BRANCH   Base branch to create from (default: main)
+  --no-code           Do not open VS Code
+  --no-wezterm        Do not open a WezTerm window
+  --no-setup          Do not run setup (uv sync && just q)
+  -h, --help          Show help
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -b|--branch) branch="${2:-}"; shift 2 ;;
+    -f|--from) base_branch="${2:-}"; shift 2 ;;
+    --no-code) open_code=false; shift ;;
+    --no-wezterm) open_wezterm=false; shift ;;
+    --no-setup) run_setup=false; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *)
+      task_file="$1"
+      shift
+      ;;
+  esac
+done
+
+[[ -n "$branch" || -n "$task_file" ]] || die "Provide a task file or --branch name"
+
+if [[ -z "$branch" ]]; then
+  branch="$(branch_from_task_file "$task_file")"
+fi
+
+dir_name="$(branch_to_dir_name "$branch")"
+worktree_path="$WORKTREES_DIR/$dir_name"
+session="$(branch_to_session_name "$branch")"
+
+say "==> Creating worktree"
+say "    Branch: $branch"
+say "    From: $base_branch"
+say "    Path: $worktree_path"
+say "    tmux: $session"
+say ""
+
+require_cmd git
+
+mkdir -p "$WORKTREES_DIR"
+
+cd "$REPO_ROOT"
+git fetch origin "$base_branch"
+
+if [[ -d "$worktree_path" && -e "$worktree_path/.git" ]]; then
+  say "==> Worktree already exists; reusing"
+else
+  git worktree add --no-track -b "$branch" "$worktree_path" "origin/$base_branch"
+fi
+
+say ""
+say "==> Copying gitignored files"
+copy_gitignored_extras "$worktree_path"
+
+say ""
+say "==> tmux layout"
+ensure_tmux_layout "$session" "$worktree_path" "$run_setup"
+
+if [[ "$open_code" == "true" ]]; then
+  say ""
+  say "==> Opening VS Code"
+  if [[ -f "$worktree_path/budgeat.code-workspace" ]]; then
+    code "$worktree_path/budgeat.code-workspace" || true
+  else
+    code "$worktree_path" || true
+  fi
+fi
+
+if [[ "$open_wezterm" == "true" ]]; then
+  say ""
+  say "==> Opening WezTerm (tmux attach)"
+  open_wezterm_to_tmux_session "$session" "$worktree_path"
+fi
+
+say ""
+say "✓ Worktree ready: $worktree_path"
+if [[ -n "$task_file" ]]; then
+  say "  Task file reference for your agent:"
+  say "  @$task_file"
+fi
