@@ -21,3 +21,22 @@ Personal dotfiles and scripts.
 Creates symlinks in `~/.local/bin` and `~/.codex/prompts`.
 
 Also creates symlinks in `~/.codex/skills`.
+
+## macOS terminal setup
+
+```bash
+./macos/bin/bootstrap-terminal
+```
+
+This installs terminal tools (Homebrew, WezTerm, tmux, Starship, etc) and links configs.
+
+It links a zsh fragment into `~/.config/zsh/`, but does not touch your `~/.zshrc` unless you opt in:
+
+```bash
+./macos/bin/bootstrap-terminal --install-shell
+```
+
+Optional flags:
+- `--no-brew-update`
+- `--no-fonts`
+- `--fzf-shell`

@@ -1,0 +1,36 @@
+WezTerm keybindings (custom)
+
+Splits:
+  Cmd+d           Split horizontally
+  Cmd+Shift+d     Split vertically
+  Cmd+Shift+t     New tab (uses current cwd)
+
+Pane navigation (leader = Ctrl+a):
+  Ctrl+a then h/j/k/l    Move between panes
+  Ctrl+a then r          Reload config
+  Ctrl+a then [          Copy mode (scrollback selection)
+  Ctrl+a then /          Search scrollback
+  Ctrl+a then o          Quick-open URL from screen
+  Ctrl+a then w          Launcher (workspaces/tabs/domains)
+  Ctrl+a then ,          Rename tab
+
+Help:
+  Ctrl+a then Shift+h    Open this help
+  Cmd+Shift+h            Open this help
+
+Reload:
+  Cmd+Shift+r            Reload config
+  Cmd+Alt+r              Reload config
+
+Debug:
+  Cmd+Alt+D              Show debug overlay
+
+Pane navigation (direct):
+  Cmd+Alt+h/j/k/l        Move between panes
+  Cmd+Alt+Arrows         Move between panes
+
+Multiline input:
+  Shift+Enter            Insert newline without running the command
+
+Tips:
+  Use tmux for session persistence (reattach after closing the app).

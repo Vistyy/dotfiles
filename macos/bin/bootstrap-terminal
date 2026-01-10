@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: bootstrap-terminal [options]
+
+Options:
+  --install-shell   Append a one-line source block to ~/.zshrc (opt-in).
+  --install-zprofile-brew  Append Homebrew init to ~/.zprofile (opt-in).
+  --no-brew-update  Skip `brew update`.
+  --no-fonts        Skip installing fonts (casks).
+  --fzf-shell       Run fzf's shell installer (writes under your home dir).
+  -h, --help        Show help.
+
+Default behavior:
+  - Installs Homebrew packages and links tool configs (wezterm/tmux/starship).
+  - Links a zsh fragment into ~/.config/zsh, but does not modify your shell dotfiles.
+USAGE
+}
+
+install_shell=false
+install_zprofile_brew=false
+brew_update=true
+install_fonts=true
+fzf_shell=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --install-shell) install_shell=true; shift ;;
+    --install-zprofile-brew) install_zprofile_brew=true; shift ;;
+    --no-brew-update) brew_update=false; shift ;;
+    --no-fonts) install_fonts=false; shift ;;
+    --fzf-shell) fzf_shell=true; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
+  esac
+done
+
+if [[ "${OSTYPE:-}" != darwin* ]]; then
+  echo "This script is for macOS only."
+  exit 1
+fi
+
+# Ensure Homebrew is installed
+if ! command -v brew >/dev/null 2>&1; then
+  echo "Homebrew not found. Installing..."
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+
+# Make sure brew is on PATH for both Intel and Apple Silicon
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ -x /usr/local/bin/brew ]]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+fi
+
+if [[ "$brew_update" == "true" ]]; then
+  brew update
+fi
+
+# Tools
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+brewfile="$repo_root/macos/Brewfile"
+
+if [[ -f "$brewfile" ]]; then
+  # Ensure brew bundle is available.
+  brew tap homebrew/bundle >/dev/null 2>&1 || true
+
+  if [[ "$install_fonts" == "true" ]]; then
+    brew bundle --file "$brewfile"
+  else
+    # Install everything except fonts (casks) by filtering the Brewfile.
+    tmp_brewfile="$(mktemp -t dotfiles-brewfile.XXXXXX)"
+    trap 'rm -f "$tmp_brewfile"' EXIT
+    # Keep non-font casks (e.g. wezterm), but drop any font casks.
+    grep -Ev '^\s*cask\s+["'"'"']font-' "$brewfile" >"$tmp_brewfile"
+    brew bundle --file "$tmp_brewfile"
+  fi
+else
+  # Fallback (shouldn't happen): install directly.
+  brew install starship tmux fzf zoxide bat eza fd ripgrep git-delta direnv zsh-autosuggestions zsh-syntax-highlighting
+  brew install --cask wezterm
+  if [[ "$install_fonts" == "true" ]]; then
+    brew install --cask font-jetbrains-mono-nerd-font
+  fi
+fi
+
+# fzf shell integration (optional; writes under $HOME)
+if [[ "$fzf_shell" == "true" ]]; then
+  "$(brew --prefix)"/opt/fzf/install --key-bindings --completion --no-update-rc
+fi
+
+# Symlink configs
+backup_dir=""
+
+ensure_backup_dir() {
+  if [[ -z "$backup_dir" ]]; then
+    backup_dir="$HOME/.dotfiles-backup/terminal-$(date +%Y%m%d-%H%M%S)"
+    mkdir -p "$backup_dir"
+  fi
+}
+
+link_file() {
+  local src="$1"
+  local dst="$2"
+
+  if [[ -e "$dst" && ! -L "$dst" ]]; then
+    ensure_backup_dir
+    local safe_name="${dst#/}"
+    safe_name="${safe_name//\//_}"
+    mv "$dst" "$backup_dir/$safe_name"
+    echo "Backed up $dst -> $backup_dir/$safe_name"
+  fi
+
+  mkdir -p "$(dirname "$dst")"
+  ln -sf "$src" "$dst"
+  echo "Linked $dst -> $src"
+}
+
+link_file "$repo_root/macos/tmux/.tmux.conf" "$HOME/.tmux.conf"
+link_file "$repo_root/macos/starship/starship.toml" "$HOME/.config/starship.toml"
+link_file "$repo_root/macos/terminal/wezterm/wezterm.lua" "$HOME/.config/wezterm/wezterm.lua"
+link_file "$repo_root/macos/terminal/wezterm/KEYBINDINGS.txt" "$HOME/.config/wezterm/KEYBINDINGS.txt"
+
+xdg_config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+mkdir -p "$xdg_config_home/zsh"
+link_file "$repo_root/macos/shell/dotfiles.zsh" "$xdg_config_home/zsh/dotfiles.zsh"
+link_file "$repo_root/macos/shell/dotfiles.d" "$xdg_config_home/zsh/dotfiles.d"
+
+append_block_once() {
+  local file="$1"
+  local begin_marker="$2"
+  local end_marker="$3"
+  local block="$4"
+
+  mkdir -p "$(dirname "$file")"
+  touch "$file"
+
+  if grep -Fqs "$begin_marker" "$file"; then
+    return 0
+  fi
+
+  {
+    printf "\n%s\n" "$begin_marker"
+    printf "%b\n" "$block"
+    printf "%s\n" "$end_marker"
+  } >>"$file"
+}
+
+if [[ "$install_shell" == "true" ]]; then
+  append_block_once "$HOME/.zshrc" \
+    "# >>> dotfiles (dotfiles repo) >>>" \
+    "# <<< dotfiles (dotfiles repo) <<<" \
+    "[[ -f \"${XDG_CONFIG_HOME:-$HOME/.config}/zsh/dotfiles.zsh\" ]] && source \"${XDG_CONFIG_HOME:-$HOME/.config}/zsh/dotfiles.zsh\""
+fi
+
+if [[ "$install_zprofile_brew" == "true" ]]; then
+  append_block_once "$HOME/.zprofile" \
+    "# >>> dotfiles (dotfiles repo) >>>" \
+    "# <<< dotfiles (dotfiles repo) <<<" \
+    "if [[ -x /opt/homebrew/bin/brew ]]; then\n  eval \"$(/opt/homebrew/bin/brew shellenv)\"\nelif [[ -x /usr/local/bin/brew ]]; then\n  eval \"$(/usr/local/bin/brew shellenv)\"\nfi"
+fi
+
+cat <<'MSG'
+Done.
+- Launch WezTerm.
+- Shell integration is opt-in:
+  - To wire into your current zsh config: re-run with `--install-shell`.
+  - To add Homebrew init to `~/.zprofile`: re-run with `--install-zprofile-brew`.
+  - Or add the `source` line yourself (see `~/.config/zsh/dotfiles.zsh`).
+- If you want to switch back, just open your previous terminal app.
+MSG
