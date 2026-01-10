@@ -11,6 +11,7 @@ Options:
   --no-brew-update  Skip `brew update`.
   --no-fonts        Skip installing fonts (casks).
   --fzf-shell       Run fzf's shell installer (writes under your home dir).
+  --tmux-plugins    Install tmux plugin manager (TPM) (writes under your home dir).
   -h, --help        Show help.
 
 Default behavior:
@@ -24,6 +25,7 @@ install_zprofile_brew=false
 brew_update=true
 install_fonts=true
 fzf_shell=false
+tmux_plugins=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -32,6 +34,7 @@ while [[ $# -gt 0 ]]; do
     --no-brew-update) brew_update=false; shift ;;
     --no-fonts) install_fonts=false; shift ;;
     --fzf-shell) fzf_shell=true; shift ;;
+    --tmux-plugins) tmux_plugins=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -127,6 +130,15 @@ xdg_config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
 mkdir -p "$xdg_config_home/zsh"
 link_file "$repo_root/macos/shell/dotfiles.zsh" "$xdg_config_home/zsh/dotfiles.zsh"
 link_file "$repo_root/macos/shell/dotfiles.d" "$xdg_config_home/zsh/dotfiles.d"
+mkdir -p "$xdg_config_home/zsh/antidote"
+link_file "$repo_root/macos/shell/antidote/plugins.txt" "$xdg_config_home/zsh/antidote/plugins.txt"
+
+if [[ "$tmux_plugins" == "true" ]]; then
+  tpm_dir="$HOME/.tmux/plugins/tpm"
+  if [[ ! -d "$tpm_dir" ]]; then
+    git clone https://github.com/tmux-plugins/tpm "$tpm_dir"
+  fi
+fi
 
 append_block_once() {
   local file="$1"
@@ -169,5 +181,7 @@ Done.
   - To wire into your current zsh config: re-run with `--install-shell`.
   - To add Homebrew init to `~/.zprofile`: re-run with `--install-zprofile-brew`.
   - Or add the `source` line yourself (see `~/.config/zsh/dotfiles.zsh`).
+- tmux plugins:
+  - To install TPM: re-run with `--tmux-plugins`, then in tmux press `prefix` + `I`.
 - If you want to switch back, just open your previous terminal app.
 MSG

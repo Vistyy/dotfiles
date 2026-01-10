@@ -40,3 +40,4 @@ Optional flags:
 - `--no-brew-update`
 - `--no-fonts`
 - `--fzf-shell`
+- `--tmux-plugins`

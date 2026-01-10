@@ -1,0 +1,3 @@
+# One plugin per line. Order matters; keep syntax-highlighting last.
+zsh-users/zsh-autosuggestions
+zsh-users/zsh-syntax-highlighting
