@@ -22,6 +22,7 @@ tmux essentials (works in any client: SSH/phone/WezTerm):
   Panes           Prefix+% (L/R split), Prefix+" (T/B split), Prefix+o (next pane), Prefix+arrows (move)
   Kill            Prefix+x (kill pane, no confirm), Prefix+& (kill window, confirm)
   Detach          Prefix+d
+  Panes (no prefix) Alt+i/j/k/l (up/left/down/right)
 
 WezTerm leader (Ctrl+a):
   Ctrl+a then r          Reload config
