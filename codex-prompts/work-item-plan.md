@@ -1,5 +1,5 @@
 ---
-description: Brainstorm a work item, resolve uncertainties, then write the correct plan file (e.g., plan.autonomous.md / plan.interactive.md) next to the work-item spec.md.
+description: Brainstorm a work item, resolve implementation uncertainties, then write an actionable implementation plan (plan.md) next to the work-item spec.md.
 ---
 
 ## User Input
@@ -17,25 +17,23 @@ persistence-layer/price-storage/schema-implementation
 
 ## Goal
 
-Create the correct plan for the referenced work item by:
+Create a high-confidence, immediately executable implementation plan for the referenced work item by:
 
 1. Brainstorming to surface unknowns and design choices
-2. Settling (resolving) all material uncertainties that are required to write the plan **without guessing**
-   - Treat any existing “ready-made” decisions (in `spec.md`, existing plan files like `plan.*.md` / `plan.md`, ADRs, etc.) as *provisional inputs*, not unquestionable truth.
+2. Settling (resolving) all material implementation details and uncertainties
+   - Treat any existing “ready-made” decisions (in `spec.md`, existing `plan.md`, ADRs, etc.) as *provisional inputs*, not unquestionable truth.
    - If you spot a decision you don’t fully agree with (e.g., it seems risky, inconsistent, underspecified, or you see a clearly better option), you MUST surface it explicitly:
      - State the issue and likely impact.
      - Propose a **Recommended** alternative (plus 1–2 other options when useful).
      - Record the outcome in the decision log.
      - If changing the decision would alter scope/requirements, ask the user to confirm using **Question Format (MANDATORY)** — do not quietly accept the original decision.
 3. Using the `superpowers:writing-plans` skill to produce the final plan
-4. Writing the plan to the correct plan file **in the same directory as** the work item’s `spec.md` **only after** all material uncertainties are resolved
-5. Ensuring the plan is executable for its type:
-   - `autonomous`: “code-monkey executable” (end-to-end without pausing for decisions)
-   - `interactive`: “workshop executable” (explicit Human Input Gates; no invented requirements/decisions)
+4. Writing the plan to `plan.md` **in the same directory as** the work item’s `spec.md` **only after** all material uncertainties are resolved
+5. Ensuring the plan is “code-monkey executable”: a junior engineer can follow it end-to-end without second-guessing, extra research, or “checking around”
 
 Do **not** implement code in this run.
 
-This task is **interactive**: if you need clarification, you MUST ask and wait. It is acceptable that writing the plan file happens in a later turn after questions are resolved.
+This task is **interactive**: if you need clarification, you MUST ask and wait. It is acceptable that writing `plan.md` happens in a later turn after questions are resolved.
 
 ## Interaction Default (Important)
 
@@ -46,7 +44,7 @@ Default behavior is **ledger-then-question**:
   2. Ask **ONE** question using **Question Format (MANDATORY)**.
 - Only skip the initial question if the user explicitly says “skip questions” / “assume defaults”.
 
-If you have not asked the user at least one question in this thread, you must not write the plan file yet.
+If you have not asked the user at least one question in this thread, you must not write `plan.md` yet.
 
 ## Related Prompts (Optional)
 
@@ -54,20 +52,18 @@ If you discover that the problem is upstream (bad slicing / missing spec), prefe
 - `feature-plan` — when the feature needs re-slicing into work items
 - `work-item-spec` — when `spec.md` is missing/weak and must be repaired before planning
 
-This prompt (`work-item-plan`) is for producing the correct plan file once the work item is properly specified.
+This prompt (`work-item-plan`) is for producing a **code-monkey executable** `plan.md` once the work item is properly specified.
 
 ## Spec vs Plan Responsibilities (Non-Negotiable)
 
 This prompt operates at the **work item implementation plan** level.
 
 - `spec.md` may contain **non-blocking** Open Questions (explicitly listed) when they do not affect implementation feasibility.
-- A plan file MUST NOT contain open questions that would require the implementer to “figure it out”.
-  - For `autonomous` work items, this means you MUST resolve any question that affects any material step before writing the plan file.
-  - For `interactive` work items, this means open questions MUST be encoded as explicit **Human Input Gates** (the plan tells the agent exactly what to ask, and execution stops until the user answers).
+- `plan.md` MUST NOT contain open questions that would require the implementer to “figure it out”. If an open question affects any material implementation step, you MUST resolve it before writing `plan.md`.
 
 If you encounter an unresolved decision that impacts the plan:
 - Ask **exactly one** Question Format question (Hard Gate B) and STOP.
-- Do not write or “half-write” the plan file with TODOs for the implementer.
+- Do not write or “half-write” `plan.md` with TODOs for the implementer.
 
 ## Documentation Stewardship (Non-Negotiable)
 
@@ -75,11 +71,11 @@ After Hard Gate (A) is satisfied and before making any edits under `docs-ai/docs
 
 If `documentation-stewardship` conflicts with this prompt, you MUST treat that as a blocking issue and ask the user for clarification before editing.
 
-When you write the plan file, you MUST explicitly restate this rule in the plan (e.g., in an “Execution Rules” section and/or in any Task that touches `docs-ai/docs/`).
+When you write `plan.md`, you MUST explicitly restate this rule in the plan (e.g., in an “Execution Rules” section and/or in any Task that touches `docs-ai/docs/`).
 
 ## Plan Clarity Bar (Non-Negotiable)
 
-The plan you write MUST be clear and specific enough that an implementer can execute it without having to infer missing steps, hunt for “where” something lives, or guess what “good” looks like.
+The plan you write to `plan.md` MUST be clear and specific enough that an implementer can execute it without having to infer missing steps, hunt for “where” something lives, or guess what “good” looks like.
 
 Required qualities:
 
@@ -92,21 +88,7 @@ Required qualities:
 
 ## Task Quality + Commit Rules (Non-Negotiable)
 
-Your plan file MUST be written as a sequence of numbered **Tasks**.
-
-Type-specific rule:
-- `autonomous`: Tasks MUST be executable end-to-end without pausing for user decisions.
-- `interactive`: Tasks MUST include explicit **Human Input Gate** tasks; execution pauses at these gates until the user answers.
-  - **Gate Task format (required):**
-    - Task title MUST start with: `HUMAN INPUT GATE — ...`
-    - Task body MUST include exactly one **Question Format (MANDATORY)** block (A/B/C + Recommended)
-    - Task Verification MUST be: “User replied with A/B/C (or yes)” (no `just quality`)
-  - **Interactive sequencing rule:**
-    - Any Task that writes/updates “decision content” (requirements, scoring rules, ADR outcomes, prioritization) MUST be preceded by a Human Input Gate that locks the missing decision(s).
-
-Execution prompt mapping:
-- `autonomous` → `work-item-execute`
-- `interactive` → `work-item-execute-interactive`
+Your `plan.md` MUST be written as a sequence of numbered **Tasks** that can be executed end-to-end without pausing between them.
 
 **Requirements:**
 
@@ -115,10 +97,10 @@ Execution prompt mapping:
   - If the Task is a **GREEN checkpoint** (repo should be healthy / ready to proceed), the verification MUST include `just quality` and it MUST be green before starting the next Task.
   - If the Task is intentionally **RED** (an intermediate step that may leave tests failing), the verification MUST make that explicit (expected `FAIL`) and MUST NOT require `just quality` until a later Task returns the repo to green.
   - For non-code Tasks (docs-only, refactoring notes, etc.), do not require `just quality` by default; prefer doc-appropriate verification when available (docs build, markdown lint, link check, etc.).
-- **Execution rules (must be stated in the plan file):**
+- **Execution rules (must be stated in plan.md):**
   - After each Task, run the Task Verification commands and ensure the result matches the stated expectation.
   - Run `just quality` at each GREEN checkpoint and always at the very end before committing.
-- **Commit rule (must be stated in the plan file):** do **not** commit after each Task. Make **one** commit at the very end, after all Tasks are complete and `just quality` is green.
+- **Commit rule (must be stated in plan.md):** do **not** commit after each Task. Make **one** commit at the very end, after all Tasks are complete and `just quality` is green.
   - Final completion (example): `git status` → `just quality` → `git add -A && git commit -m "<work item>: <short summary>"`
 
 ## Output Constraint (Non-Negotiable)
@@ -126,12 +108,8 @@ Execution prompt mapping:
 Do NOT print the full plan content in the chat.
 
 - In chat: provide only a brief outline (max 10 bullets), plus the required **Decision Confirmation Table** when asserting **“No open questions remain”**, plus the single pending question (if any).
-- In chat: provide only a brief outline (max 10 bullets), plus:
-  - for `autonomous`: the required **Decision Confirmation Table** when asserting **“No open questions remain”**
-  - for `interactive`: the required **Human Input Gates Inventory** table when asserting **“No hidden assumptions remain”**
-  - plus the single pending question (if any)
-- The full plan (with detailed steps/snippets) must only be written to the correct plan file after the Hard Gate is satisfied.
-- Do not “preview” plan file content in the response. Either (A) confirm no open questions and then write the plan file, or (B) ask the single Question Format question and stop.
+- The full plan (with detailed steps/snippets) must only be written to `plan.md` after the Hard Gate is satisfied.
+- Do not “preview” `plan.md` content in the response. Either (A) confirm no open questions and then write `plan.md`, or (B) ask the single Question Format question and stop.
 
 ## Chat Length Limit
 
@@ -163,38 +141,20 @@ If a material decision is merely “implied”, “common sense”, or “a reas
 
 ## Hard Gate (Non-Negotiable)
 
-Before writing/updating the plan file, you MUST either:
-- (A) Satisfy the type-specific hard gate and provide the required table, OR
-- (B) STOP and ask **ONE** question (using **Question Format (MANDATORY)**). Do NOT write/modify the plan file until the user answers.
+Before writing/updating `plan.md`, you MUST either:
+- (A) State **“No open questions remain”** AND provide a **Decision Confirmation Table** (respecting **Chat Length Limit**) where every material decision includes:
+  - Decision
+  - Chosen option
+  - Source: (`spec.md` line / ADR / design doc) OR “user-confirmed in chat”
+- (B) STOP and ask **ONE** question (using **Question Format (MANDATORY)**). Do NOT write/modify `plan.md` until the user answers.
 
-Type-specific Hard Gate (A):
-
-- If `WORK_ITEM_TYPE = autonomous`:
-  - State **“No open questions remain”** AND provide a **Decision Confirmation Table** (respecting **Chat Length Limit**) where every material decision includes:
-    - Decision
-    - Chosen option
-    - Source: (`spec.md` line / ADR / design doc) OR “user-confirmed in chat”
-
-- If `WORK_ITEM_TYPE = interactive`:
-  - State **“No hidden assumptions remain”** AND provide a **Human Input Gates Inventory** table describing the exact questions the plan will ask the user during execution (so the agent does not invent requirements/decisions).
-    - Required columns: `Gate`, `Decision Needed`, `Where Recorded` (file/section)
-  - It is OK if decisions are not resolved yet; they MUST be captured as explicit gates in the plan.
-
-If `WORK_ITEM_TYPE = autonomous` and any **material uncertainty** exists, you MUST choose (B).
-
-If `WORK_ITEM_TYPE = interactive`, you may proceed under Hard Gate (A) by turning material uncertainties into explicit Human Input Gates. Only choose (B) when you cannot even draft a gate (e.g., you can’t state meaningful options without first learning a constraint from the user).
+If any **material uncertainty** exists, you MUST choose (B).
 
 ### Hard Gate Extension (Non-Negotiable)
 
-If you have a recommendation *because you disagree or are not fully convinced* by a provisional input:
-- If `WORK_ITEM_TYPE = autonomous`: you MUST ask a Question Format question **immediately** (Hard Gate B). You may not defer the question until after presenting a plan draft or after stating “No open questions remain”.
-- If `WORK_ITEM_TYPE = interactive`: you MUST NOT silently accept it. Either:
-  - Ask a Question Format question now (Hard Gate B), OR
-  - Encode it as the next explicit **HUMAN INPUT GATE — ...** Task in `plan.interactive.md` (preferred when the plan can proceed without knowing the answer yet).
+If you have a recommendation *because you disagree or are not fully convinced* by a provisional input, you MUST ask a Question Format question **immediately** (Hard Gate B). You may not defer the question until after presenting a plan draft or after stating “No open questions remain”.
 
-Material decision source rule:
-- If `WORK_ITEM_TYPE = autonomous` and ANY material decision’s source is not one of: (`spec.md` line / ADR / design doc) OR “user-confirmed in chat” (i.e., it’s your inference/default), you MUST choose (B).
-- If `WORK_ITEM_TYPE = interactive` and a material decision is not locked by one of those sources, it MUST be represented as a **HUMAN INPUT GATE — ...** (not an implicit default). If you cannot draft meaningful A/B/C options, choose (B).
+If ANY material decision’s source is not one of: (`spec.md` line / ADR / design doc) OR “user-confirmed in chat” (i.e., it’s your inference/default), you MUST choose (B).
 
 While you are waiting for the user to answer your pending Question Format question, the user may ask clarifying questions. You MUST answer those clarifications directly (normal prose), then re-state your pending **single** Question Format question and continue waiting for the user’s A/B/C (or “yes”).
 
@@ -245,12 +205,8 @@ Then:
 
 1. Locate `WORK_ITEM_SPEC = WORK_ITEM_DIR/spec.md` and confirm it exists.
 2. If multiple candidates exist, STOP and ask the user to choose the correct one.
-3. Read `WORK_ITEM_TYPE` from `WORK_ITEM_SPEC`:
-   - `**Type:** autonomous` → plan file is `WORK_ITEM_DIR/plan.autonomous.md`
-   - `**Type:** interactive` → plan file is `WORK_ITEM_DIR/plan.interactive.md`
-   - Missing `Type` (legacy) → treat as `autonomous` and plan file is `WORK_ITEM_DIR/plan.md`
-4. Define `WORK_ITEM_PLAN` as the plan file you will create/update (per `WORK_ITEM_TYPE` above).
-5. If `WORK_ITEM_DIR` lives under `docs-ai/docs/initiatives/<initiative>/features/<feature>/work-items/<work-item>/`, also define:
+3. Define `WORK_ITEM_PLAN = WORK_ITEM_DIR/plan.md` (this is the file you will create/update).
+4. If `WORK_ITEM_DIR` lives under `docs-ai/docs/initiatives/<initiative>/features/<feature>/work-items/<work-item>/`, also define:
    - `FEATURE_DIR = docs-ai/docs/initiatives/<initiative>/features/<feature>/`
    - `INITIATIVE_DIR = docs-ai/docs/initiatives/<initiative>/`
 
@@ -260,7 +216,6 @@ If `WORK_ITEM_SPEC` is missing any of the following, treat it as a blocking upst
 - clear **Scope** (in/out)
 - concrete, checkable **Acceptance Criteria**
 - explicit **Decisions** vs **Open Questions**
-- explicit `Type` (`autonomous` | `interactive`) unless the user explicitly confirms this is a legacy spec and you should proceed with `plan.md`
 
 In that case, STOP and ask **one** Question Format question:
 - either to run `work-item-spec` first, or
@@ -309,16 +264,16 @@ If multiple material uncertainties exist, you MUST ask about the **single highes
 ### 4. Hard Gate: Confirm No Open Questions Remain
 
 Before writing/updating `WORK_ITEM_PLAN`, either:
-- Satisfy Hard Gate (A) for the work item type (above) and provide the required table, or
-- STOP and ask **ONE** question (using **Question Format (MANDATORY)**). Do NOT write/modify `WORK_ITEM_PLAN` until the user answers.
+- Explicitly state **“No open questions remain”** and provide the required **Decision Confirmation Table** in chat (respecting **Chat Length Limit**), or
+- STOP and ask **ONE** question (using **Question Format (MANDATORY)**). Do NOT write/modify `plan.md` until the user answers.
 
-### 5. Write the Plan File Next to `spec.md`
+### 5. Write `plan.md` Next to `spec.md`
 
 Use `superpowers:writing-plans` to generate the plan and write/update `WORK_ITEM_PLAN`.
 
-If `WORK_ITEM_PLAN` already exists, update it rather than starting over; preserve any content that is still correct and remove contradictions.
+If `plan.md` already exists, update it rather than starting over; preserve any content that is still correct and remove contradictions.
 
-### 5a. Task Verification Self-Audit (Required Before Writing the Plan File)
+### 5a. Task Verification Self-Audit (Required Before Writing plan.md)
 
 Before writing/updating `WORK_ITEM_PLAN`, do a task “fit” pass:
 
@@ -330,4 +285,4 @@ Before writing/updating `WORK_ITEM_PLAN`, do a task “fit” pass:
 - The plan explicitly restates the Documentation Stewardship rule for edits under `docs-ai/docs/`.
 - No Task requires “figure out what to do next”; each has atomic steps with file paths.
 
-After writing/updating `WORK_ITEM_PLAN`, do NOT paste or preview its contents in chat. In chat, only confirm that `WORK_ITEM_PLAN` was written and provide a brief outline (max 10 bullets).
+After writing/updating `WORK_ITEM_PLAN`, do NOT paste or preview its contents in chat. In chat, only confirm that `plan.md` was written and provide a brief outline (max 10 bullets).

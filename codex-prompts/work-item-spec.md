@@ -1,5 +1,5 @@
 ---
-description: Define or repair a work item spec (spec.md) so it is small, unambiguous, and ready for work-item-plan to generate the correct plan file (e.g., plan.autonomous.md / plan.interactive.md).
+description: Define or repair a work item spec (spec.md) so it is small, unambiguous, and ready for work-item-plan to generate plan.md.
 ---
 
 ## User Input
@@ -24,9 +24,9 @@ Create or update a high-quality `spec.md` for the referenced work item such that
 2. Material decisions are explicit or tracked as open questions
 3. Acceptance criteria are concrete (checkboxes) and testable
 4. The feature `overview.md` Work Items table is updated to include this work item (row + status)
-5. The work item is ready for `work-item-plan` to generate the correct plan file (e.g., `plan.autonomous.md` / `plan.interactive.md`, or legacy `plan.md`)
+5. The work item is ready for `work-item-plan` to generate `plan.md`
 
-Do **not** create any plan file in this run (e.g., `plan.autonomous.md` / `plan.interactive.md` / `plan.md`).
+Do **not** create `plan.md` in this run.
 Do **not** implement code in this run.
 
 This task is **interactive**: if you need clarification, you MUST ask and wait.
@@ -54,26 +54,6 @@ Work item status MUST use this exact vocabulary everywhere it appears (spec head
 Do not put qualifiers like “(post-mvp)” or “(merged into …)” in the Status value.
 Put qualifiers in the Description or in the body of `spec.md`.
 
-## Type Convention (Non-Negotiable)
-
-Every work item `spec.md` MUST declare exactly one `Type`:
-
-- `autonomous` — safe for the agent to plan/execute end-to-end from the plan without requiring user decisions mid-run
-- `interactive` — requires user participation to make decisions; the plan MUST include explicit “Human Input Gates” and the execute prompt MUST stop for user input at those points
-
-This type drives the plan filename:
-
-- `autonomous` → `plan.autonomous.md`
-- `interactive` → `plan.interactive.md`
-
-This type also drives which execution prompt to use:
-
-- `autonomous` → execute with `work-item-execute` (autonomous, proceed-by-default)
-- `interactive` → execute with `work-item-execute-interactive` (one Question Format gate at a time)
-
-Backward compatibility:
-- If `Type` is missing (legacy specs), treat it as `autonomous` and use `plan.md`.
-
 ## Decision Granularity (Non-Negotiable)
 
 This prompt operates at the **work item spec** level.
@@ -83,7 +63,7 @@ You MUST lock down enough to make the work item:
 - verifiable (acceptance criteria)
 - slice-stable (no hidden dependencies that would invalidate the work item)
 
-You MUST NOT lock down full implementation details that belong in the plan file (exact file edits, step-by-step commands), unless the detail is required to make acceptance criteria meaningful or to avoid rework (e.g., a public API shape).
+You MUST NOT lock down full implementation details that belong in `plan.md` (exact file edits, step-by-step commands), unless the detail is required to make acceptance criteria meaningful or to avoid rework (e.g., a public API shape).
 
 ## Existing Docs Compatibility (Important)
 
@@ -106,7 +86,7 @@ If `documentation-stewardship` conflicts with this prompt, you MUST treat that a
 
 ## Plan-ability Bar (Non-Negotiable)
 
-The `spec.md` MUST be specific enough that `work-item-plan` can produce an executable plan file without guessing:
+The `spec.md` MUST be specific enough that `work-item-plan` can produce an executable `plan.md` without guessing:
 
 - Clear boundaries (what is in/out)
 - Concrete acceptance criteria (verifiable)
@@ -244,7 +224,6 @@ In your first response, include a **Context Read Ledger** with:
 
 Ensure `spec.md` contains, at minimum:
 - Status + Feature
-- Type (`autonomous` | `interactive`)
 - Goal (what this delivers)
 - Scope (included/excluded)
 - Acceptance criteria (checkboxes)
