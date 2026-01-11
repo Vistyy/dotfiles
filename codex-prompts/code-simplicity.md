@@ -62,7 +62,7 @@ Before beginning the simplicity review, gather necessary context:
    - Preferred (if present): `docs-ai/docs/initiatives/{initiative}/features/{feature}/overview.md`
    - Preferred (if present): `docs-ai/docs/initiatives/{initiative}/features/{feature}/work-items/{work-item}/spec.md`
    - Preferred (if present): `docs-ai/docs/initiatives/{initiative}/features/{feature}/work-items/{work-item}/tasks.md`
-   - Fallback (if initiatives structure not used): `specs/*/spec.md`, `plan.md`, `tasks.md`
+   - Fallback (if initiatives structure not used): `specs/*/spec.md`, `plan.*.md` (or `plan.md`), `tasks.md`
 4. Load any project-specific AI documentation (for example, `docs-ai/docs/`) if present.
 5. Assume pre-commit validation (linters, type checkers, automated tools) has already run successfully; do not re-run these tools.
 

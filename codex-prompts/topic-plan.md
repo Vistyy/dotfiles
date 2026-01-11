@@ -158,4 +158,4 @@ End with:
 
 ### 4) Optional: write it to a file (ONLY if asked)
 
-Do not write any files unless the user explicitly asks you to (e.g., “write the plan to `plan.md`”).
+Do not write any files unless the user explicitly asks you to (e.g., “write the plan to `plan.md` / `plan.autonomous.md`”).
