@@ -8,6 +8,13 @@
 
 set -e
 
+# Path helpers
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_COPY_MANIFEST="$SCRIPT_DIR/new-worktree.copylist"
+REPO_COPY_MANIFEST=""
+COPY_MANIFEST_OVERRIDE=""
+COPY_MANIFEST=""
+
 # Defaults
 REPO_ROOT="$HOME/projects/budgeat"
 WORKTREES_DIR="$HOME/projects/budgeat.worktrees"
@@ -26,6 +33,10 @@ while [[ $# -gt 0 ]]; do
             BASE_BRANCH="$2"
             shift 2
             ;;
+        --copylist|-c)
+            COPY_MANIFEST_OVERRIDE="$2"
+            shift 2
+            ;;
         --help|-h)
             echo "Usage: new-worktree [TASK_FILE] [OPTIONS]"
             echo ""
@@ -36,6 +47,9 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --branch, -b NAME   Explicit branch name (overrides task file derivation)"
             echo "  --from, -f BRANCH   Base branch to create from (default: main)"
+            echo "  --copylist, -c FILE Copy manifest file of repo-relative paths"
+            echo "                    (default: $REPO_ROOT/.worktree.copylist if present,"
+            echo "                              else $SCRIPT_COPY_MANIFEST)"
             echo "  --help, -h          Show this help"
             exit 0
             ;;
@@ -46,6 +60,15 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+REPO_COPY_MANIFEST="$REPO_ROOT/.worktree.copylist"
+if [[ -n "$COPY_MANIFEST_OVERRIDE" ]]; then
+    COPY_MANIFEST="$COPY_MANIFEST_OVERRIDE"
+elif [[ -f "$REPO_COPY_MANIFEST" ]]; then
+    COPY_MANIFEST="$REPO_COPY_MANIFEST"
+else
+    COPY_MANIFEST="$SCRIPT_COPY_MANIFEST"
+fi
 
 # Derive branch name from task file if not explicitly provided
 if [[ -z "$BRANCH_NAME" ]]; then
@@ -86,17 +109,78 @@ git worktree add --no-track -b "$BRANCH_NAME" "$WORKTREE_PATH" "origin/$BASE_BRA
 echo ""
 echo "==> Copying gitignored files"
 
-# Copy .env if it exists
-if [[ -f "$REPO_ROOT/.env" ]]; then
-    cp "$REPO_ROOT/.env" "$WORKTREE_PATH/.env"
-    echo "    Copied .env"
-fi
+trim() {
+    local s="$1"
+    # Trim leading whitespace
+    s="${s#"${s%%[![:space:]]*}"}"
+    # Trim trailing whitespace
+    s="${s%"${s##*[![:space:]]}"}"
+    printf '%s' "$s"
+}
 
-# Copy models directory if it exists
-if [[ -d "$REPO_ROOT/models" ]]; then
-    mkdir -p "$WORKTREE_PATH/models"
-    cp -r "$REPO_ROOT/models/"* "$WORKTREE_PATH/models/" 2>/dev/null || true
-    echo "    Copied models/"
+is_unsafe_relpath() {
+    local p="$1"
+    [[ -z "$p" ]] && return 0
+    [[ "$p" == /* ]] && return 0
+    [[ "$p" == ".." || "$p" == ../* || "$p" == */../* || "$p" == */.. ]] && return 0
+    return 1
+}
+
+copy_relpath() {
+    local relpath="$1"
+    local src="$REPO_ROOT/$relpath"
+    local dest="$WORKTREE_PATH/$relpath"
+
+    if command -v rsync >/dev/null 2>&1; then
+        (cd "$REPO_ROOT" && rsync -aR "$relpath" "$WORKTREE_PATH/")
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$dest")"
+    if [[ -d "$src" ]]; then
+        mkdir -p "$dest"
+        cp -a "$src/." "$dest/"
+    else
+        cp -a "$src" "$dest"
+    fi
+}
+
+if [[ -f "$COPY_MANIFEST" ]]; then
+    echo "    Manifest: $COPY_MANIFEST"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Handle CRLF manifests
+        line="${line%$'\r'}"
+        relpath="$(trim "$line")"
+        [[ -z "$relpath" ]] && continue
+        [[ "$relpath" == \#* ]] && continue
+
+        # Normalize directory entries like "models/" -> "models"
+        relpath="${relpath%/}"
+
+        if is_unsafe_relpath "$relpath"; then
+            echo "    Skipping unsafe path in manifest: $relpath" >&2
+            continue
+        fi
+
+        if [[ -e "$REPO_ROOT/$relpath" ]]; then
+            copy_relpath "$relpath"
+            echo "    Copied $relpath"
+        fi
+    done <"$COPY_MANIFEST"
+else
+    echo "    No manifest found at: $COPY_MANIFEST"
+    echo "    Falling back to built-in defaults (.env, models/)"
+
+    if [[ -f "$REPO_ROOT/.env" ]]; then
+        cp "$REPO_ROOT/.env" "$WORKTREE_PATH/.env"
+        echo "    Copied .env"
+    fi
+
+    if [[ -d "$REPO_ROOT/models" ]]; then
+        mkdir -p "$WORKTREE_PATH/models"
+        cp -r "$REPO_ROOT/models/"* "$WORKTREE_PATH/models/" 2>/dev/null || true
+        echo "    Copied models/"
+    fi
 fi
 
 echo ""
