@@ -54,6 +54,15 @@ If user input implies a different time window or focus area, apply it as a soft 
 
 ## Execution Steps
 
+### 0) Establish “System Intent” (fast, bounded)
+
+Before diving into hotspots, write a short, evidence-based snapshot of what the repo appears to be optimizing for and what constraints it is implicitly accepting:
+- Primary entry points (CLI / daemon / web app / library) and where they live
+- Dominant execution model(s) implied by the codebase (single-threaded reactor/event-loop style, thread-per-request, batch jobs, etc.)
+- The “inevitable futures” suggested by current work (e.g., likely I/O-heavy workflows, integrations, streaming, concurrency)
+
+Keep this short (5–10 lines). This is a framing device to help judge whether the repo’s current shapes are aligned with the problems it’s trying to solve.
+
 ### 1) Gather repo-level signals (fast, lightweight)
 
 Run a small set of commands to ground the analysis:
@@ -84,8 +93,9 @@ Depending on what you find (and the user’s stated concerns, if any), probe wit
 - **Duplication clusters**: near-identical helpers/config blocks/validation logic across folders
 - **Test brittleness**: repeated setup fixtures, slow integration patterns used everywhere, snapshot sprawl, coupled mocks
 - **Docs drift**: multiple partial sources-of-truth, stale README sections compared to current usage
+- **Ecosystem alignment gaps**: hand-rolled integration/client code that bypasses an existing in-repo integration layer or a canonical library/SDK already used elsewhere in the repo (especially when this creates duplicated retries/auth/error handling)
 - **Architecture change candidates** (only if justified by symptoms/evidence):
-  - “Async boundary confusion”: blocking I/O inside async paths, mixed sync/async stacks
+  - “Async boundary confusion / sync debt”: blocking I/O inside non-blocking runtimes, sync-only interfaces on paths that will inevitably do I/O, or “thread wrappers” used as a default escape hatch (signals future contention, latency, and failure-mode complexity)
   - “Lifecycle sprawl”: inconsistent initialization/cleanup patterns, duplicated composition roots, scattered wiring
   - “Boundary leaks”: domain/app layers importing framework details, “reach-through” into internals
   - “Pattern pressure”: repeated hand-rolled factories/service-locators/registries that indicate a missing or wrong abstraction
@@ -104,6 +114,7 @@ Each proposed task must include:
 - Title (short, specific)
 - Priority: `P0` / `P1` / `P2`
 - Type: `Problem` (something hurts / is risky) or `Opportunity` (not broken, but worth improving)
+- Essence (1 sentence): what underlying problem/opportunity this addresses (not “what files to edit”)
 - Statement:
   - If `Problem`: what hurts today / what risk exists
   - If `Opportunity`: what could be better and why it is worth doing now

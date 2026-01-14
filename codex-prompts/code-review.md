@@ -22,7 +22,7 @@ Critically review the diff between the current branch and the base branch to ide
 
 **Review Scope**: Review the changes in the diff while considering how they interact with and impact the surrounding codebase. Reference specific file paths and 1-based line numbers.
 
-**Scope Boundary**: Keep findings focused on correctness, stability, spec/task alignment, and risk. Route non-functional simplicity/readability/DRY suggestions to the code-simplicity prompt.
+**Scope Boundary**: Keep findings focused on correctness, stability, spec/task alignment, and risk. Route non-functional simplicity/readability/DRY suggestions to the code-simplicity prompt. **Approach-level alternatives are in-scope** only when the current approach plausibly increases risk, locks in a hard-to-reverse constraint (API shape / execution model / boundary), or materially misaligns with the intended outcome; otherwise keep them brief and non-blocking.
 
 **Review Only**: Do not make code edits in this run. Produce a review report only.
 
@@ -62,6 +62,22 @@ Before writing findings, explicitly identify:
 2. **Directly impacted call paths**: at minimum, identify at least one caller and one callee for each changed public surface (use repo search/navigation).
 3. **Line-number accuracy**: when citing a finding, confirm 1-based line numbers from the file contents (not just diff hunk offsets).
 
+### 0.2 Intent & Approach Snapshot (MANDATORY)
+
+Before writing findings, extract what the PR is *trying* to accomplish, then sanity-check whether the chosen route is the right one.
+
+1. **Intent (1–2 sentences)**: State the PR’s goal and the approach taken (“This PR aims to X by doing Y”).
+2. **Irreversible decisions (max 3 bullets)**: Call out decisions that will be expensive to unwind later and cite where they are introduced:
+   - New/changed public API shape
+   - New dependency / vendor integration surface
+   - New boundary/layering choice (domain vs infra vs transport)
+   - Execution model assumptions (sync-only vs non-blocking / event-loop style runtime)
+3. **Approach-level check (loose trigger)**: If anything in the diff looks like it will calcify into a recurring pattern or create future cost, include an **Approach Alternatives** subsection in the findings:
+   - Keep this bounded: **at most 2 alternatives**.
+   - Each alternative must be justified by a concrete driver visible in the diff/impact radius (e.g., pattern pressure/duplication, execution-model mismatch, boundary leak, operational risk).
+   - Treat as **Must-fix before merge** only when the current approach plausibly increases correctness/stability risk or bakes in a hard-to-reverse constraint; otherwise mark as **Follow-up / Nice-to-have**.
+   - Report each alternative as a normal numbered finding (with severity, location(s), impact, and recommendation), not as a free-form essay.
+
 ### 1. Review Functional Correctness
 
 Examine the diff for:
@@ -91,6 +107,7 @@ Confirm changes respect system boundaries and layering:
 - **Cross-package impacts**: Dependencies properly managed, no circular references
 - **Separation of concerns**: Business logic, data access, presentation properly isolated
 - **Coupling analysis**: Changes don't introduce tight coupling or hidden dependencies
+- **Execution model alignment**: If the runtime model expects non-blocking behavior, flag blocking I/O or sync-only interfaces introduced on hot paths (even if they “work” today) as a potential correctness/stability risk due to backpressure, latency, or deadlock/starvation failure modes.
 
 ### 5. Evaluate Tests and Behavioral Coverage
 
@@ -206,3 +223,4 @@ Avoid the following behaviors:
 - Do not propose speculative abstractions or premature generalization for problems that do not yet exist.
 - Do not require large rewrites that are orthogonal to the diff unless there is a clear, high-severity risk.
 - Do not suggest changes outside the diff unless they are directly impacted by the change or necessary to prevent a significant bug or regression.
+- Do not write “architecture essays”: keep approach alternatives to at most 2, tightly justified by evidence in the diff and immediate impact radius.
