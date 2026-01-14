@@ -21,5 +21,4 @@ WIN_PATH=$(wslpath -w "$TARGET_DIR")
 
 wt.exe -w 0 \
     new-tab -p "Ubuntu" -d "$WIN_PATH" --title "Codex" --tabColor "#FFA500" wsl.exe -d Ubuntu -- bash -ic "cd '$TARGET_DIR' && (codex -p codex || true) && exec bash" \; \
-    split-pane -V -p "Ubuntu" -d "$WIN_PATH" --title "Standard" --tabColor "#FFA500" wsl.exe -d Ubuntu -- bash -ic "cd '$TARGET_DIR' && (codex -p standard || true) && exec bash" \; \
-    new-tab -p "Ubuntu" -d "$WIN_PATH" wsl.exe -d Ubuntu -- bash -ic "cd '$TARGET_DIR' && exec bash"
+    split-pane -V -p "Ubuntu" -d "$WIN_PATH" --title "Standard" --tabColor "#FFA500" wsl.exe -d Ubuntu -- bash -ic "cd '$TARGET_DIR' && (codex -p standard || true) && exec bash"
