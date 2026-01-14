@@ -4,6 +4,7 @@ WezTerm (macOS):
   Cmd+Shift+h     Help (this screen)
   Cmd+Shift+r     Reload WezTerm config (shows toast)
   Cmd+Shift+t     New WezTerm tab (uses current cwd)
+  Ctrl+Cmd+f      Toggle fullscreen
 
 tmux-first shortcuts (via WezTerm; persistent across reattach):
   Cmd+d           tmux split (left/right)
@@ -43,6 +44,11 @@ Debug:
 
 Multiline input:
   Shift+Enter            Insert newline without running the command
+
+Word movement / deletion:
+  Opt+Left/Right         Move by word
+  Opt+Backspace          Delete previous word
+  Opt+d                  Delete next word
 
 Tips:
   Use tmux for session persistence (reattach after closing the app).

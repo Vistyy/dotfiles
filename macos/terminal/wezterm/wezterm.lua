@@ -37,7 +37,9 @@ config.colors = {
     "#fbf5ea",
   },
 }
-config.window_decorations = "RESIZE"
+-- Include macOS window controls (traffic lights) so fullscreen works via the
+-- standard macOS UI + shortcuts.
+config.window_decorations = "INTEGRATED_BUTTONS|RESIZE"
 config.window_background_opacity = 1.0
 config.macos_window_background_blur = 20
 config.scrollback_lines = 10000
@@ -107,6 +109,14 @@ local function tmux_prefix_arrow(direction)
 end
 
 config.keys = {
+  -- Window management (macOS)
+  { key = "f", mods = "CMD|CTRL", action = act.ToggleFullScreen },
+  -- If a window gets set to a non-standard window level (e.g. always-on-bottom),
+  -- some window switchers may not list it. These bindings let you force it back.
+  { key = "0", mods = "CMD|SHIFT", action = act.SetWindowLevel("Normal") },
+  { key = "UpArrow", mods = "CMD|SHIFT", action = act.SetWindowLevel("AlwaysOnTop") },
+  { key = "DownArrow", mods = "CMD|SHIFT", action = act.SetWindowLevel("AlwaysOnBottom") },
+
   -- tmux-first workflow:
   -- Cmd-based bindings drive tmux so panes/windows persist across reattaches.
   -- (tmux prefix is Ctrl-b; \x02 is Ctrl-b)
@@ -127,6 +137,12 @@ config.keys = {
   { key = "DownArrow", mods = "CMD|ALT", action = tmux_prefix_arrow("Down") },
   { key = "UpArrow", mods = "CMD|ALT", action = tmux_prefix_arrow("Up") },
   { key = "RightArrow", mods = "CMD|ALT", action = tmux_prefix_arrow("Right") },
+
+  -- Word navigation / deletion (Readline-style; works in zsh/bash/fish, locally and over SSH)
+  { key = "LeftArrow", mods = "ALT", action = act.SendString "\x1bb" }, -- backward-word
+  { key = "RightArrow", mods = "ALT", action = act.SendString "\x1bf" }, -- forward-word
+  { key = "Backspace", mods = "ALT", action = act.SendString "\x1b\x7f" }, -- backward-kill-word
+  { key = "d", mods = "ALT", action = act.SendString "\x1bd" }, -- kill-word (forward)
 
   -- Scrollback / copy / search
   { key = "[", mods = "LEADER", action = act.ActivateCopyMode },
