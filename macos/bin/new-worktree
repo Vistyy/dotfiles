@@ -10,6 +10,9 @@ script_dir="$(cd "$(dirname "$script_path")" && pwd)"
 # shellcheck source=macos/bin/_worktree_tmux_lib.sh
 source "$script_dir/_worktree_tmux_lib.sh"
 
+script_copy_manifest="$script_dir/new-worktree.copylist"
+copy_manifest_override=""
+
 branch=""
 base_branch="$DEFAULT_BASE_BRANCH"
 task_file=""
@@ -18,7 +21,7 @@ open_wezterm=true
 run_setup=true
 
 usage() {
-  cat <<'USAGE'
+  cat <<USAGE
 Usage: new-worktree [TASK_FILE] [OPTIONS]
 
 Examples:
@@ -29,6 +32,9 @@ Examples:
 Options:
   -b, --branch NAME   Explicit branch name (overrides task derivation)
   -f, --from BRANCH   Base branch to create from (default: main)
+  -c, --copylist FILE Copy manifest file of repo-relative paths
+                    (default: $REPO_ROOT/.worktree.copylist if present,
+                              else $script_copy_manifest)
   --no-code           Do not open VS Code
   --no-wezterm        Do not open a WezTerm window
   --no-setup          Do not run setup (uv sync && just q)
@@ -40,6 +46,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     -b|--branch) branch="${2:-}"; shift 2 ;;
     -f|--from) base_branch="${2:-}"; shift 2 ;;
+    -c|--copylist) copy_manifest_override="${2:-}"; shift 2 ;;
     --no-code) open_code=false; shift ;;
     --no-wezterm) open_wezterm=false; shift ;;
     --no-setup) run_setup=false; shift ;;
@@ -83,7 +90,7 @@ fi
 
 say ""
 say "==> Copying gitignored files"
-copy_gitignored_extras "$worktree_path"
+copy_gitignored_extras "$worktree_path" "$script_copy_manifest" "$copy_manifest_override"
 
 say ""
 say "==> tmux layout"

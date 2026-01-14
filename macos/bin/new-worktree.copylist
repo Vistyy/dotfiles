@@ -1,0 +1,11 @@
+# new-worktree copy manifest
+# - One repo-relative path per line (file or directory)
+# - Blank lines and lines starting with # are ignored
+#
+# Example:
+#   .env
+#   models/
+
+.env
+models/
+infra/environments/single-vps/ansible/inventory.ini
