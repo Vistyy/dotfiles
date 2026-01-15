@@ -1,24 +1,131 @@
-#!/bin/bash
-# Opens 3 WSL Ubuntu tabs in Windows Terminal for dev workflow
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Opens WSL Ubuntu panes in Windows Terminal for dev workflow
 #
 # Usage:
-#   dev-tabs              # Uses current dir if it's a git repo, otherwise default
-#   dev-tabs ~/projects   # Opens tabs in specified directory
+#   dev-tabs              # Uses repo root if PWD is in a git repo, otherwise default
+#   dev-tabs .            # Same as above
+#   dev-tabs --here .     # Use exact dir (not git repo root)
+#
+# Options:
+#   -H, --here     Anchor to DIR (not repo root)
+#   -S, --status   Print computed target dir and exit
+#   -h, --help     Show help
+#
+# Note:
+# - The macOS variant (`macos/bin/dev-tabs`) supports tmux session reuse plus
+#   more cleanup-related flags. This WSL/Windows Terminal version always creates
+#   a new tab/pane.
 
 DEFAULT_DIR="$HOME/projects/budgeat"
 
-# Use argument if provided, otherwise check if PWD is a project
-if [[ -n "$1" ]]; then
-    TARGET_DIR="$1"
-elif [[ -d "$PWD/.git" ]]; then
-    TARGET_DIR="$PWD"
-else
-    TARGET_DIR="$DEFAULT_DIR"
+target_dir=""
+use_here=false
+status=false
+dir_provided=false
+
+usage() {
+  cat <<'USAGE'
+Usage: dev-tabs [DIR] [OPTIONS]
+
+Opens a Windows Terminal tab with split panes running Codex prompts in WSL.
+
+By default, if DIR is inside a git repo, this anchors to the repo root. Use
+--here to anchor to the exact DIR instead.
+
+Options:
+  -H, --here     Anchor to DIR (not repo root)
+  -S, --status   Print computed target dir and exit
+  -h, --help     Show help
+USAGE
+}
+
+die() {
+  printf "Error: %s\n" "$*" >&2
+  exit 1
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
+}
+
+realpath_of() {
+  local p="$1"
+  (cd "$p" 2>/dev/null && pwd -P) || printf "%s" "$p"
+}
+
+anchor_dir_for() {
+  local dir="$1"
+  if [[ "$use_here" == "true" ]]; then
+    printf "%s" "$dir"
+    return 0
+  fi
+  if git -C "$dir" rev-parse --show-toplevel >/dev/null 2>&1; then
+    git -C "$dir" rev-parse --show-toplevel
+    return 0
+  fi
+  printf "%s" "$dir"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -H|--here) use_here=true; shift ;;
+    -S|--status) status=true; shift ;;
+    -h|--help) usage; exit 0 ;;
+    --) shift; break ;;
+    *)
+      if [[ "$1" == -* ]]; then
+        die "Unknown option: $1"
+      fi
+      target_dir="$1"
+      dir_provided=true
+      shift
+      ;;
+  esac
+done
+
+if [[ -z "$target_dir" ]]; then
+  target_dir="$PWD"
 fi
 
+require_cmd git
+require_cmd wslpath
+
+target_dir="$(realpath_of "$target_dir")"
+anchor_dir="$(realpath_of "$(anchor_dir_for "$target_dir")")"
+
+if [[ ! -d "$anchor_dir" ]]; then
+  die "Directory does not exist: $anchor_dir"
+fi
+
+# If not in a git repo, fall back to DEFAULT_DIR unless the user explicitly asked
+# for an exact directory via --here or provided a DIR.
+if git -C "$anchor_dir" rev-parse --show-toplevel >/dev/null 2>&1; then
+  :
+else
+  if [[ "$dir_provided" != "true" && "$use_here" != "true" ]]; then
+    anchor_dir="$DEFAULT_DIR"
+  fi
+fi
+
+if [[ ! -d "$anchor_dir" ]]; then
+  die "Directory does not exist: $anchor_dir"
+fi
+
+if [[ "$status" == "true" ]]; then
+  printf "target_dir=%s\n" "$target_dir"
+  printf "anchor_dir=%s\n" "$anchor_dir"
+  printf "win_path=%s\n" "$(wslpath -w "$anchor_dir")"
+  exit 0
+fi
+
+require_cmd wt.exe
+require_cmd wsl.exe
+
 # Convert WSL path to Windows path for wt.exe
-WIN_PATH=$(wslpath -w "$TARGET_DIR")
+WIN_PATH="$(wslpath -w "$anchor_dir")"
 
 wt.exe -w 0 \
-    new-tab -p "Ubuntu" -d "$WIN_PATH" --title "Codex" --tabColor "#FFA500" wsl.exe -d Ubuntu -- bash -ic "cd '$TARGET_DIR' && (codex -p codex || true) && exec bash" \; \
-    split-pane -V -p "Ubuntu" -d "$WIN_PATH" --title "Standard" --tabColor "#FFA500" wsl.exe -d Ubuntu -- bash -ic "cd '$TARGET_DIR' && (codex -p standard || true) && exec bash"
+  new-tab -p "Ubuntu" -d "$WIN_PATH" --title "Codex" --tabColor "#FFA500" wsl.exe -d Ubuntu -- bash -ic "cd '$anchor_dir' && (codex -p codex || true) && exec bash" \; \
+  split-pane -V -p "Ubuntu" -d "$WIN_PATH" --title "Standard" --tabColor "#FFA500" wsl.exe -d Ubuntu -- bash -ic "cd '$anchor_dir' && (codex -p standard || true) && exec bash"
