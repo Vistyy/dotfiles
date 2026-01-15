@@ -36,6 +36,9 @@ It links a zsh fragment into `~/.config/zsh/`, but does not touch your `~/.zshrc
 ./macos/bin/bootstrap-terminal --install-shell
 ```
 
+Tip: keep machine/user-specific zsh tweaks private by putting them in `~/.zshrc.local`
+and sourcing it from your `~/.zshrc` (see `macos/shell/zshrc.example`).
+
 Optional flags:
 - `--no-brew-update`
 - `--no-fonts`

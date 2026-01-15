@@ -45,6 +45,9 @@ Debug:
 Multiline input:
   Shift+Enter            Insert newline without running the command
 
+Line movement:
+  Cmd+Left/Right         Move to beginning/end of line
+
 Word movement / deletion:
   Opt+Left/Right         Move by word
   Opt+Backspace          Delete previous word
@@ -52,3 +55,7 @@ Word movement / deletion:
 
 Tips:
   Use tmux for session persistence (reattach after closing the app).
+
+Copy/paste:
+  In tmux copy-mode: Ctrl+c / y / Enter copies selection to macOS clipboard and exits copy-mode.
+  Cmd+v pastes (WezTerm paste).

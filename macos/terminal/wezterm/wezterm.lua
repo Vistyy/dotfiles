@@ -144,6 +144,10 @@ config.keys = {
   { key = "Backspace", mods = "ALT", action = act.SendString "\x1b\x7f" }, -- backward-kill-word
   { key = "d", mods = "ALT", action = act.SendString "\x1bd" }, -- kill-word (forward)
 
+  -- Line navigation (macOS standard-ish)
+  { key = "LeftArrow", mods = "CMD", action = act.SendString "\x01" }, -- Ctrl-a (beginning-of-line)
+  { key = "RightArrow", mods = "CMD", action = act.SendString "\x05" }, -- Ctrl-e (end-of-line)
+
   -- Scrollback / copy / search
   { key = "[", mods = "LEADER", action = act.ActivateCopyMode },
   { key = "/", mods = "LEADER", action = act.Search("CurrentSelectionOrEmptyString") },
