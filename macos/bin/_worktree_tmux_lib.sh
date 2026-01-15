@@ -173,5 +173,11 @@ open_wezterm_to_tmux_session() {
   require_cmd wezterm
   require_cmd tmux
 
-  (nohup wezterm start --cwd "$cwd" -- tmux new -A -s "$session" >/dev/null 2>&1 &)
+  # On macOS, launching WezTerm via `open` reliably brings the window to the
+  # foreground and makes it visible to window switchers (e.g., AltTab).
+  if command -v open >/dev/null 2>&1; then
+    open -a WezTerm --args start --cwd "$cwd" -- tmux new -A -s "$session" >/dev/null 2>&1 || true
+  else
+    (nohup wezterm start --cwd "$cwd" -- tmux new -A -s "$session" >/dev/null 2>&1 &)
+  fi
 }
