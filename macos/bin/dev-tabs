@@ -10,59 +10,396 @@ script_dir="$(cd "$(dirname "$script_path")" && pwd)"
 # shellcheck source=macos/bin/_worktree_tmux_lib.sh
 source "$script_dir/_worktree_tmux_lib.sh"
 
-target_dir="${1:-}"
+target_dir=""
 open_wezterm=true
 run_setup=false
+use_here=false
+fresh_session=false
+list_sessions=false
+prune_sessions=false
+kill_session=false
+kill_ids=""
+status=false
+clean_sessions=false
 
 usage() {
   cat <<'USAGE'
 Usage: dev-tabs [DIR] [OPTIONS]
 
-Creates/repairs the standard tmux layout for the current worktree and opens a
-new WezTerm window attached to that tmux session.
+Creates/repairs the standard tmux layout and opens a new WezTerm window
+attached to that tmux session.
+
+By default, if DIR is inside a git repo, this anchors to the repo root. Use
+--here to anchor to the exact DIR instead.
 
 Options:
-  --no-wezterm   Do not open WezTerm
-  --setup        Also create a setup window (uv sync && just q)
-  -h, --help     Show help
+  -n, --no-wezterm    Do not open WezTerm
+  -s, --setup         Also create a setup window (uv sync && just q)
+  -H, --here          Anchor session to DIR (not git repo root)
+  -f, --fresh         Kill existing session and recreate it
+  -k, --kill          Kill the session for DIR and exit
+  -l, --list          List managed tmux sessions created by these scripts
+  -p, --prune         Kill managed sessions whose CODEX_ROOT no longer exists
+  -K, --kill-ids IDS  Kill managed sessions by id(s) from --list (e.g. 1,3,5 or all)
+  -S, --status        Print computed session details for DIR and exit
+  -C, --clean         Interactive cleanup of managed sessions
+  -h, --help          Show help
 USAGE
+}
+
+prompt_read() {
+  local prompt="$1"
+  local var_name="$2"
+  if [[ -r /dev/tty ]]; then
+    read -r -p "$prompt" "$var_name" </dev/tty || return 1
+  else
+    read -r -p "$prompt" "$var_name" || return 1
+  fi
+}
+
+tmux_getenv() {
+  local session="$1"
+  local key="$2"
+  tmux show-environment -t "$session" "$key" 2>/dev/null | sed -n "s/^${key}=//p"
+}
+
+is_managed_session() {
+  local session="$1"
+  [[ "$(tmux_getenv "$session" "CODEX_MANAGED")" == "1" ]]
+}
+
+managed_sessions() {
+  require_cmd tmux
+  tmux list-sessions -F '#{session_name}' 2>/dev/null \
+    | while IFS= read -r s; do
+        [[ -n "$s" ]] || continue
+        if is_managed_session "$s"; then
+          printf "%s\n" "$s"
+        fi
+      done \
+    | LC_ALL=C sort
+}
+
+list_managed_sessions() {
+  require_cmd tmux
+  local sessions
+  sessions="$(managed_sessions || true)"
+  if [[ -z "${sessions:-}" ]]; then
+    say "No tmux sessions."
+    return 0
+  fi
+
+  say "Managed tmux sessions:"
+  local i=1
+  while IFS= read -r s; do
+    [[ -n "$s" ]] || continue
+    root="$(tmux_getenv "$s" "CODEX_ROOT")"
+    attached="$(tmux list-sessions -F '#{session_name} #{session_attached}' 2>/dev/null | awk -v n="$s" '$1==n{print $2}' || true)"
+    [[ -n "$attached" ]] || attached="?"
+    say "  $i) $s (attached=$attached) root=${root:-?}"
+    i=$((i + 1))
+  done <<< "$sessions"
+}
+
+prune_managed_sessions() {
+  require_cmd tmux
+  local sessions
+  sessions="$(managed_sessions || true)"
+  [[ -n "${sessions:-}" ]] || { say "No managed sessions."; return 0; }
+
+  local killed=0
+  while IFS= read -r s; do
+    [[ -n "$s" ]] || continue
+    root="$(tmux_getenv "$s" "CODEX_ROOT")"
+    if [[ -z "$root" || ! -d "$root" ]]; then
+      say "==> Pruning tmux session: $s (root=${root:-missing})"
+      tmux kill-session -t "$s" 2>/dev/null || true
+      killed=$((killed + 1))
+    fi
+  done <<< "$sessions"
+
+  if [[ "$killed" -eq 0 ]]; then
+    say "No managed sessions to prune."
+  fi
+}
+
+confirm_kill_all() {
+  if [[ ! -r /dev/tty ]]; then
+    die "Refusing to kill all sessions without a TTY (run interactively)"
+  fi
+  echo ""
+  say "About to kill ALL managed tmux sessions created by these scripts."
+  say "Type 'all' to confirm."
+  local confirm
+  prompt_read "> " confirm || die "Confirmation failed"
+  [[ "$confirm" == "all" ]] || die "Confirmation failed"
+}
+
+kill_managed_sessions_by_ids() {
+  local ids_raw="$1"
+  require_cmd tmux
+
+  local sessions
+  sessions="$(managed_sessions || true)"
+  [[ -n "${sessions:-}" ]] || { say "No managed sessions."; return 0; }
+
+  local ids
+  ids="$(printf "%s" "$ids_raw" | tr ',' ' ')"
+  [[ -n "$ids" ]] || die "Provide id(s) (e.g. 1,3,5) or all"
+
+  if [[ "$ids" == "all" ]]; then
+    confirm_kill_all
+    while IFS= read -r s; do
+      [[ -n "$s" ]] || continue
+      say "==> Killing tmux session: $s"
+      tmux kill-session -t "$s" 2>/dev/null || true
+    done <<< "$sessions"
+    return 0
+  fi
+
+  local max
+  max="$(printf "%s\n" "$sessions" | wc -l | tr -d ' ')"
+
+  local kill_count=0
+  for id in $ids; do
+    if ! [[ "$id" =~ ^[0-9]+$ ]]; then
+      err "Skipping invalid id: $id"
+      continue
+    fi
+    if (( id < 1 || id > max )); then
+      err "Skipping out-of-range id: $id (valid: 1..$max)"
+      continue
+    fi
+    session_to_kill="$(printf "%s\n" "$sessions" | sed -n "${id}p")"
+    if [[ -n "$session_to_kill" ]]; then
+      say "==> Killing tmux session: $session_to_kill"
+      tmux kill-session -t "$session_to_kill" 2>/dev/null || true
+      kill_count=$((kill_count + 1))
+    fi
+  done
+
+  if [[ "$kill_count" -eq 0 ]]; then
+    say "No sessions killed."
+  fi
+}
+
+clean_managed_sessions() {
+  require_cmd tmux
+  local sessions
+  sessions="$(managed_sessions || true)"
+  [[ -n "${sessions:-}" ]] || { say "No managed sessions."; return 0; }
+
+  if command -v fzf >/dev/null 2>&1; then
+    local picked_ids
+    picked_ids="$(
+      {
+        local i=1
+        while IFS= read -r s; do
+          [[ -n "$s" ]] || continue
+          root="$(tmux_getenv "$s" "CODEX_ROOT")"
+          printf "%d) %s  root=%s\n" "$i" "$s" "${root:-?}"
+          i=$((i + 1))
+        done <<< "$sessions"
+      } | fzf --multi --prompt="Kill sessions> " | sed -n 's/^\([0-9][0-9]*\)).*/\1/p' | paste -sd, -
+    )"
+
+    if [[ -z "${picked_ids:-}" ]]; then
+      say "No selection."
+      return 0
+    fi
+    kill_managed_sessions_by_ids "$picked_ids"
+    return 0
+  fi
+
+  list_managed_sessions
+  echo ""
+  say "Enter ids to kill (e.g. 1,3,5), 'all', or empty to cancel:"
+  local ids
+  prompt_read "> " ids || return 1
+  [[ -n "$ids" ]] || { say "Canceled."; return 0; }
+  kill_managed_sessions_by_ids "$ids"
+}
+
+realpath_of() {
+  python3 - <<'PY' "$1"
+import os, sys
+print(os.path.realpath(sys.argv[1]))
+PY
+}
+
+anchor_dir_for() {
+  local dir="$1"
+  if [[ "$use_here" == "true" ]]; then
+    printf "%s" "$dir"
+    return 0
+  fi
+  if git -C "$dir" rev-parse --show-toplevel >/dev/null 2>&1; then
+    git -C "$dir" rev-parse --show-toplevel
+    return 0
+  fi
+  printf "%s" "$dir"
+}
+
+short_hash() {
+  python3 - <<'PY' "$1"
+import hashlib, sys
+print(hashlib.sha1(sys.argv[1].encode("utf-8")).hexdigest()[:7])
+PY
+}
+
+repo_name_for_git_dir() {
+  local dir="$1"
+  local url
+  url="$(git -C "$dir" remote get-url origin 2>/dev/null || true)"
+  if [[ -n "$url" ]]; then
+    local base="${url##*/}"
+    base="${base##*:}"
+    base="${base%.git}"
+    printf "%s" "$base"
+    return 0
+  fi
+  printf "%s" "$(basename "$(git -C "$dir" rev-parse --show-toplevel)")"
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --no-wezterm) open_wezterm=false; shift ;;
-    --setup) run_setup=true; shift ;;
+    -n|--no-wezterm) open_wezterm=false; shift ;;
+    -s|--setup) run_setup=true; shift ;;
+    -H|--here) use_here=true; shift ;;
+    -f|--fresh) fresh_session=true; shift ;;
+    -k|--kill) kill_session=true; shift ;;
+    -l|--list) list_sessions=true; shift ;;
+    -p|--prune) prune_sessions=true; shift ;;
+    -K|--kill-ids) kill_ids="${2:-}"; shift 2 ;;
+    -S|--status) status=true; shift ;;
+    -C|--clean) clean_sessions=true; shift ;;
     -h|--help) usage; exit 0 ;;
+    --) shift; break ;;
     *)
+      if [[ "$1" == -* ]]; then
+        die "Unknown option: $1"
+      fi
       target_dir="$1"
       shift
       ;;
   esac
 done
 
+require_cmd git
+require_cmd tmux
+
+if [[ "$list_sessions" == "true" ]]; then
+  list_managed_sessions
+  exit 0
+fi
+
+if [[ "$prune_sessions" == "true" ]]; then
+  prune_managed_sessions
+  exit 0
+fi
+
+if [[ -n "$kill_ids" ]]; then
+  kill_managed_sessions_by_ids "$kill_ids"
+  exit 0
+fi
+
+if [[ "$clean_sessions" == "true" ]]; then
+  clean_managed_sessions
+  exit 0
+fi
+
 if [[ -z "$target_dir" ]]; then
-  if git -C "$PWD" rev-parse --show-toplevel >/dev/null 2>&1; then
-    target_dir="$PWD"
-  else
-    target_dir="$REPO_ROOT"
+  target_dir="$PWD"
+fi
+
+target_dir="$(realpath_of "$target_dir")"
+anchor_dir="$(realpath_of "$(anchor_dir_for "$target_dir")")"
+
+repo_name="$(basename "$anchor_dir")"
+
+in_git_repo=false
+if git -C "$anchor_dir" rev-parse --show-toplevel >/dev/null 2>&1; then
+  in_git_repo=true
+  repo_name="$(repo_name_for_git_dir "$anchor_dir")"
+fi
+
+branch=""
+if [[ "$in_git_repo" == "true" ]]; then
+  branch="$(git -C "$anchor_dir" symbolic-ref -q --short HEAD || true)"
+  if [[ -z "$branch" ]] && git -C "$anchor_dir" rev-parse --verify HEAD >/dev/null 2>&1; then
+    sha="$(git -C "$anchor_dir" rev-parse --short HEAD)"
+    branch="detached-$sha"
   fi
 fi
 
-require_cmd git
+if [[ "$in_git_repo" != "true" ]]; then
+  session="${repo_name}__here__$(short_hash "$anchor_dir")"
+elif [[ "$use_here" == "true" ]]; then
+  session="${repo_name}__here__$(short_hash "$anchor_dir")"
+else
+  [[ -n "$branch" ]] || die "Not on a branch in $anchor_dir (detached HEAD?)"
+  session="${repo_name}__$(branch_to_dir_name "$branch")"
 
-branch="$(git -C "$target_dir" symbolic-ref -q --short HEAD || true)"
-[[ -n "$branch" ]] || die "Not on a branch in $target_dir (detached HEAD?)"
+  if tmux has-session -t "$session" 2>/dev/null; then
+    existing_root="$(tmux show-environment -t "$session" CODEX_ROOT 2>/dev/null | sed -n 's/^CODEX_ROOT=//p')"
+    if [[ -z "$existing_root" ]]; then
+      existing_pane_path="$(tmux display-message -p -t "${session}:0.0" '#{pane_current_path}' 2>/dev/null || true)"
+      if [[ -n "$existing_pane_path" ]]; then
+        existing_pane_path="$(realpath_of "$existing_pane_path")"
+      fi
 
-session="$(branch_to_session_name "$branch")"
+      if [[ -n "$existing_pane_path" && "$existing_pane_path" == "$anchor_dir"* ]]; then
+        tmux setenv -t "$session" CODEX_ROOT "$anchor_dir" || true
+      else
+        session="${session}__$(short_hash "$anchor_dir")"
+      fi
+    elif [[ "$existing_root" != "$anchor_dir" ]]; then
+      session="${session}__$(short_hash "$anchor_dir")"
+    fi
+  fi
+fi
 
 say "==> tmux layout"
-say "    Dir:  $target_dir"
+say "    Dir:  $anchor_dir"
 say "    tmux: $session"
 
-ensure_tmux_layout "$session" "$target_dir" "$run_setup"
+if [[ "$status" == "true" ]]; then
+  say ""
+  say "==> status"
+  say "    target_dir: $target_dir"
+  say "    anchor_dir: $anchor_dir"
+  say "    in_git_repo: $in_git_repo"
+  say "    session:     $session"
+  say "    exists:      $(tmux has-session -t "$session" 2>/dev/null && echo yes || echo no)"
+  if tmux has-session -t "$session" 2>/dev/null; then
+    existing_root="$(tmux_getenv "$session" "CODEX_ROOT")"
+    say "    CODEX_ROOT:  ${existing_root:-?}"
+  fi
+  exit 0
+fi
+
+if [[ "$kill_session" == "true" ]]; then
+  if tmux has-session -t "$session" 2>/dev/null; then
+    say ""
+    say "==> Killing tmux session"
+    tmux kill-session -t "$session" || true
+  else
+    say ""
+    say "==> No tmux session to kill"
+  fi
+  exit 0
+fi
+
+if [[ "$fresh_session" == "true" ]] && tmux has-session -t "$session" 2>/dev/null; then
+  say ""
+  say "==> Killing existing tmux session"
+  tmux kill-session -t "$session" || true
+fi
+
+ensure_tmux_layout "$session" "$anchor_dir" "$run_setup"
 
 if [[ "$open_wezterm" == "true" ]]; then
   say ""
   say "==> Opening WezTerm (tmux attach)"
-  open_wezterm_to_tmux_session "$session" "$target_dir"
+  open_wezterm_to_tmux_session "$session" "$anchor_dir"
 fi

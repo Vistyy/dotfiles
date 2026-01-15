@@ -148,6 +148,8 @@ ensure_tmux_layout() {
   if ! tmux has-session -t "$session" 2>/dev/null; then
     local shell="${SHELL:-/bin/zsh}"
     tmux new-session -d -s "$session" -c "$cwd" -n codex
+    tmux setenv -t "$session" CODEX_ROOT "$cwd"
+    tmux setenv -t "$session" CODEX_MANAGED "1"
 
     local pane1 pane2
     pane1="$(tmux display-message -p -t "${session}:codex" '#{pane_id}')"
