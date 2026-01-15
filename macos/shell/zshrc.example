@@ -1,0 +1,12 @@
+# Example ~/.zshrc (keep your real one private)
+#
+# Recommended approach:
+# - Keep `~/.zshrc` as a regular file (not a symlink into this repo).
+# - Source the repo-managed zsh config fragment.
+# - Put machine/user-specific secrets and tweaks in `~/.zshrc.local` (not committed).
+
+# Source dotfiles zsh config (installed by `./macos/bin/bootstrap-terminal`)
+[[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/dotfiles.zsh" ]] && source "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/dotfiles.zsh"
+
+# Optional local-only overrides
+[[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
