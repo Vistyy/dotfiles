@@ -42,6 +42,11 @@ Default behavior is **ledger-then-question**:
 
 If you have not asked the user at least one question in this thread, you must not write `spec.md` yet.
 
+## Related Prompts (Optional)
+
+If you do not yet have a stable work item (e.g., you’re starting from “I want something done” and the right initiative/feature/work-item structure is still unclear), prefer:
+- `planning-intake` — interview-first planning that updates `roadmap.md` / `delivery-map.md` and creates the new work items (and any required initiative/feature scaffolding)
+
 ## Status Convention (Non-Negotiable)
 
 Work item status MUST use this exact vocabulary everywhere it appears (spec header + feature Work Items table):
@@ -64,6 +69,38 @@ You MUST lock down enough to make the work item:
 - slice-stable (no hidden dependencies that would invalidate the work item)
 
 You MUST NOT lock down full implementation details that belong in `plan.md` (exact file edits, step-by-step commands), unless the detail is required to make acceptance criteria meaningful or to avoid rework (e.g., a public API shape).
+
+## Provisional Inputs + Cross-checking (Non-Negotiable)
+
+When writing `spec.md`, treat upstream context as **inputs**, not truth:
+- feature/initiative docs (`overview.md`, `design.md`, integration docs)
+- `delivery-map.md`
+- any “wave brief” docs (when present)
+- existing work-item specs (including this one, if it exists)
+
+Your job is to produce a work item spec that makes sense **from this work item’s standpoint**:
+- If upstream docs are underspecified or conflict with each other, you MUST surface the conflict and ask the user (one question at a time).
+- If the work item’s scope is “too broad to be safe”, you MUST propose a split rather than writing a vague spec.
+- If the work item’s “goal” would require enabling/adjacent work that isn’t captured anywhere, you MUST explicitly include that work in scope OR explicitly exclude it and capture it as a dependency / separate work item (user-confirmed).
+
+## Second-order Requirements Sweep (Restricted; non-checklist)
+
+Before finalizing scope and acceptance criteria, do a quick **second-order requirements sweep** from this work item’s standpoint:
+
+- What must be true “around” this change for it to actually be usable/shippable?
+- What would otherwise require manual intervention (setup, config, rollout, coordination)?
+- What integration boundary might be affected (inputs/outputs, contracts, shared state)?
+- What failure mode would be most embarrassing if we forgot it?
+- What is the **experience bar** here (modern/nice/simple), and what would make the experience feel “annoying” if we shipped it as-is?
+
+This is not a fixed checklist; use the above prompts to identify likely missing work areas.
+
+If anything uncovered by the sweep is likely relevant and the outcome is not explicit, treat it as a material uncertainty and ask the user before writing `spec.md`.
+
+To keep the interview grounded (and avoid “functional but annoying” specs), you SHOULD ensure the questions you ask elicit:
+- **Default path**: what does “first successful use” look like for a fresh user/machine, step-by-step (short narrative)?
+- **Failure story**: how does this fail, and what should the UX/operator experience be when it fails?
+- **Annoyance check**: what would make the result feel annoying or high-friction if we shipped it as-is?
 
 ## Existing Docs Compatibility (Important)
 
@@ -193,6 +230,7 @@ Then read in this order (when files exist):
 2. `docs-ai/docs/initiatives/delivery-map.md` (if it exists), otherwise try `docs-ai/initiatives/delivery-map.md`
    - You MUST find the wave/section that this work item belongs to (or the closest matching initiative/feature section).
    - You MUST list the other work-item slugs in the same wave/section as “Related (same wave)”.
+   - If the matched wave/section references a wave brief doc (e.g., a `waves/<wave>.md` file path or link), you MUST read it and treat it as the durable requirements anchor for this work item.
 3. `INITIATIVE_OVERVIEW`
 4. Initiative-level integration docs (to avoid duplicating cross-cutting guidance):
    - `INITIATIVE_DIR/integration/overview.md` (or, if missing, scan `INITIATIVE_DIR/integration/`)

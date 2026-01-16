@@ -16,6 +16,11 @@ persistence-layer
 docs-ai/docs/initiatives/persistence-layer
 ```
 
+## When to use this (quick routing)
+
+If the user is starting from a fuzzy goal (“I want something done”) and you don’t yet have a stable initiative slug/path (and expect to update `roadmap.md` / `delivery-map.md` and create new initiatives/features/work items), prefer starting with:
+- `planning-intake`
+
 ## Goal
 
 Create a coherent, actionable initiative-level “north star” that makes feature planning and work-item slicing safe by:
@@ -41,6 +46,16 @@ You MUST lock down only initiative-level decisions:
 
 You MUST NOT lock down work-item implementation details (exact file edits, algorithms, schema column choices, endpoint shapes) unless that detail is required to define initiative boundaries.
 If you encounter lower-level uncertainty, record it explicitly as an **Open Question** to be resolved at the feature/work-item level.
+
+## Second-order Requirements Sweep (Non-Negotiable; non-checklist)
+
+Before proposing initiative updates, you MUST run a **second-order requirements sweep** to avoid later “mid-implementation interventions” caused by missing cross-cutting requirements.
+
+This is intentionally not a fixed checklist. Use judgment to identify cross-cutting areas that might need initiative-level decisions (or explicit open questions).
+
+This sweep MUST also consider the **experience bar** at the initiative level: defaults, ergonomics, and “boring to operate” workflows should be treated as first-class requirements, not polish.
+
+If any area is likely relevant and not already decided in existing initiative-level docs, you MUST ask the user (one question at a time) before editing `overview.md` or claiming a stable feature map.
 
 ## Interaction Default (Important)
 

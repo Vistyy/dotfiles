@@ -49,6 +49,7 @@ If you have not asked the user at least one question in this thread, you must no
 ## Related Prompts (Optional)
 
 If you discover that the problem is upstream (bad slicing / missing spec), prefer using:
+- `planning-intake` — when you’re starting from a fuzzy goal (“I want something done”) and need to update `roadmap.md` / `delivery-map.md` and create the right initiative/feature/work-item scaffolding first
 - `feature-plan` — when the feature needs re-slicing into work items
 - `work-item-spec` — when `spec.md` is missing/weak and must be repaired before planning
 
@@ -236,6 +237,7 @@ Then you MUST locate and read the *parent* docs that define the work item’s bo
 - **Delivery map** (required when it exists):
   - Prefer `docs-ai/docs/initiatives/delivery-map.md`, otherwise try `docs-ai/initiatives/delivery-map.md`
   - You MUST identify the wave/section that this work item belongs to, and list the other work-item slugs in that same wave/section as “Related (same wave)”.
+  - If the matched wave/section references a wave brief doc (e.g., a `waves/<wave>.md` file path or link), you MUST read it and treat it as the durable requirements anchor for this plan.
 
 “Locate” means: derive the parent directories from the work-item path **or** use repo search to find them. If you cannot unambiguously identify the parent feature and initiative, STOP and ask the user to choose the correct parent(s) using **Question Format (MANDATORY)**.
 
