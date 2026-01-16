@@ -66,6 +66,32 @@ If you encounter an unresolved decision that impacts the plan:
 - Ask **exactly one** Question Format question (Hard Gate B) and STOP.
 - Do not write or “half-write” `plan.md` with TODOs for the implementer.
 
+## Spec Backfill Rule (Non-Negotiable)
+
+This prompt treats `spec.md` as the durable source of truth for **Decisions**.
+
+If you make a decision during this planning session that differs from what’s currently written in `spec.md` (or any referenced ADR/design doc), you MUST:
+
+1. **Make the change explicit** (in chat): record the old vs new decision in the **Decision Log** (see below).
+2. **Get confirmation** (Decision Confirmation Rule / Hard Gate).
+3. **Backfill the work item spec**: update `WORK_ITEM_SPEC` so its **Decisions** reflect the new, confirmed decision (and remove or rewrite any now-contradictory text).
+
+The goal is that the work item folder is self-contained and future planning/execution does not rediscover the same “fixed” ambiguity.
+
+When backfilling, prefer updating the existing **Decisions** section (and any contradictory prose) rather than adding new “history/changelog” sections unless the work-item docs already use one.
+
+### Decision Log (Required)
+
+Maintain a running Decision Log *in chat* throughout the session. Each entry must include:
+
+- Decision (what is being decided)
+- Previous spec/ADR position (what `spec.md`/ADR currently says)
+- New chosen option
+- Rationale (1–3 sentences, impact-focused)
+- Confirmation source: `spec.md` line / ADR / “user-confirmed in chat”
+
+If you have multiple decision changes pending, keep a short “Spec backfill queue” list in chat (file path + decision name) so the user can see what will be written back to `spec.md`.
+
 ## Documentation Stewardship (Non-Negotiable)
 
 After Hard Gate (A) is satisfied and before making any edits under `docs-ai/docs/`, you MUST use the `documentation-stewardship` skill and follow its “STOP - Before You Edit” checklist.
@@ -268,6 +294,17 @@ If multiple material uncertainties exist, you MUST ask about the **single highes
 Before writing/updating `WORK_ITEM_PLAN`, either:
 - Explicitly state **“No open questions remain”** and provide the required **Decision Confirmation Table** in chat (respecting **Chat Length Limit**), or
 - STOP and ask **ONE** question (using **Question Format (MANDATORY)**). Do NOT write/modify `plan.md` until the user answers.
+
+### 4a. Backfill `spec.md` With Confirmed Decision Changes (Required)
+
+If any decisions were changed during this session, you MUST update `WORK_ITEM_SPEC` **before** writing/updating `WORK_ITEM_PLAN`:
+
+1. Run `documentation-stewardship` (required for edits under `docs-ai/docs/`).
+2. Update `WORK_ITEM_SPEC` so its **Decisions** reflect the confirmed outcome(s).
+   - Rewrite or remove any contradictory prose in Scope/Acceptance Criteria if needed.
+   - Keep edits minimal and factual; do not expand scope without explicit confirmation.
+   - Do not add a new “Decision History” / changelog section unless the work-item docs already use one.
+3. In chat, briefly list what you changed in `spec.md` (paths + 1-line summary per decision). Do not paste large diffs.
 
 ### 5. Write `plan.md` Next to `spec.md`
 
