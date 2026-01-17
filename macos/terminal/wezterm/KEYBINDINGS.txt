@@ -58,4 +58,5 @@ Tips:
 
 Copy/paste:
   In tmux copy-mode: Ctrl+c / y / Enter copies selection to macOS clipboard and exits copy-mode.
+  Tip: mouse drag-select selects in tmux; it does not auto-copy.
   Cmd+v pastes (WezTerm paste).
