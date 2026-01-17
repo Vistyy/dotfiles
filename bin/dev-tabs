@@ -9,6 +9,14 @@ set -euo pipefail
 #   dev-tabs --here .     # Use exact dir (not git repo root)
 #
 # Options:
+#   -w, --worktree Select a git worktree interactively (requires git repo)
+#   -m, --mode     Which panes to open: both|codex|standard
+#   -c, -t, -b     Shortcuts for --mode codex|standard|both
+#   -R, -N         Shortcuts for --reuse-tab / --new-tab
+#   -T             Open in this terminal instead of Windows Terminal
+#       --reuse-tab  Prefer opening new pane(s) in current tab
+#       --new-tab    Always open a new tab
+#       --this-terminal Open in current terminal (no wt.exe)
 #   -H, --here     Anchor to DIR (not repo root)
 #   -S, --status   Print computed target dir and exit
 #   -h, --help     Show help
@@ -16,7 +24,7 @@ set -euo pipefail
 # Note:
 # - The macOS variant (`macos/bin/dev-tabs`) supports tmux session reuse plus
 #   more cleanup-related flags. This WSL/Windows Terminal version always creates
-#   a new tab/pane.
+#   Windows Terminal panes/tabs (no tmux session reuse).
 
 DEFAULT_DIR="$HOME/projects/budgeat"
 
@@ -24,6 +32,10 @@ target_dir=""
 use_here=false
 status=false
 dir_provided=false
+worktree_pick=false
+mode="both"
+reuse_tab="auto" # auto|true|false
+this_terminal=false
 
 usage() {
   cat <<'USAGE'
@@ -35,6 +47,14 @@ By default, if DIR is inside a git repo, this anchors to the repo root. Use
 --here to anchor to the exact DIR instead.
 
 Options:
+  -w, --worktree  Select a git worktree interactively (requires git repo)
+  -m, --mode MODE Open panes for MODE: both|codex|standard (default: both)
+  -c              Shortcut for --mode codex
+  -t              Shortcut for --mode standard
+  -b              Shortcut for --mode both
+  -T, --this-terminal Open in this terminal (no Windows Terminal)
+  -R, --reuse-tab Prefer opening in current tab (split-pane)
+  -N, --new-tab   Always open a new tab
   -H, --here     Anchor to DIR (not repo root)
   -S, --status   Print computed target dir and exit
   -h, --help     Show help
@@ -50,9 +70,73 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
 }
 
+prompt_read() {
+  local prompt="$1"
+  local var_name="$2"
+  if [[ -r /dev/tty ]]; then
+    read -r -p "$prompt" "$var_name" </dev/tty || return 1
+  else
+    read -r -p "$prompt" "$var_name" || return 1
+  fi
+}
+
 realpath_of() {
   local p="$1"
   (cd "$p" 2>/dev/null && pwd -P) || printf "%s" "$p"
+}
+
+select_worktree_dir() {
+  local dir="$1"
+  git -C "$dir" rev-parse --show-toplevel >/dev/null 2>&1 || die "--worktree requires a git repo (DIR=$dir)"
+
+  local entries
+  entries="$(git -C "$dir" worktree list --porcelain 2>/dev/null || true)"
+  [[ -n "${entries:-}" ]] || die "No git worktrees found (DIR=$dir)"
+
+  if command -v fzf >/dev/null 2>&1; then
+    local picked
+    picked="$(
+      printf "%s\n" "$entries" \
+        | awk '
+            BEGIN { p=""; b=""; d="" }
+            $1=="worktree" { if (p!="") { printf "%s\t%s\n", p, (b==""?d:b) } p=$2; b=""; d="" }
+            $1=="branch" { b=$2 }
+            $1=="detached" { d="(detached)" }
+            END { if (p!="") { printf "%s\t%s\n", p, (b==""?d:b) } }
+          ' \
+        | fzf --prompt="Worktree> " \
+        | cut -f1
+    )"
+    [[ -n "${picked:-}" ]] || die "No worktree selected"
+    printf "%s" "$picked"
+    return 0
+  fi
+
+  local paths branches
+  paths="$(printf "%s\n" "$entries" | awk '$1=="worktree"{print $2}')"
+  branches="$(printf "%s\n" "$entries" | awk '$1=="branch"{print $2}')"
+  [[ -n "${paths:-}" ]] || die "No git worktrees found (DIR=$dir)"
+
+  local i=1
+  printf "Worktrees:\n" >&2
+  while IFS= read -r p; do
+    [[ -n "$p" ]] || continue
+    local b
+    b="$(printf "%s\n" "$entries" | awk -v want="$p" '
+      $1=="worktree"{p=$2}
+      $1=="branch" && p==want {print $2; exit}
+      $1=="detached" && p==want {print "(detached)"; exit}
+    ')"
+    [[ -n "${b:-}" ]] || b="(unknown)"
+    printf "  %d) %s  %s\n" "$i" "$p" "$b" >&2
+    i=$((i + 1))
+  done <<< "$paths"
+
+  local pick
+  prompt_read "Select worktree (1-$((i - 1))): " pick || die "Selection failed"
+  [[ "$pick" =~ ^[0-9]+$ ]] || die "Invalid selection: $pick"
+  (( pick >= 1 && pick < i )) || die "Out of range selection: $pick"
+  printf "%s\n" "$paths" | sed -n "${pick}p"
 }
 
 anchor_dir_for() {
@@ -70,6 +154,16 @@ anchor_dir_for() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    -w|--worktree) worktree_pick=true; shift ;;
+    -m|--mode) mode="${2:-}"; shift 2 ;;
+    -c) mode="codex"; shift ;;
+    -t) mode="standard"; shift ;;
+    -b) mode="both"; shift ;;
+    -T|--this-terminal) this_terminal=true; shift ;;
+    -R|--reuse-tab) reuse_tab="true"; shift ;;
+    -N|--new-tab) reuse_tab="false"; shift ;;
+    --reuse-tab) reuse_tab="true"; shift ;;
+    --new-tab) reuse_tab="false"; shift ;;
     -H|--here) use_here=true; shift ;;
     -S|--status) status=true; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -90,13 +184,27 @@ if [[ -z "$target_dir" ]]; then
 fi
 
 require_cmd git
-require_cmd wslpath
 
 target_dir="$(realpath_of "$target_dir")"
+
+case "$mode" in
+  both|codex|standard) ;;
+  *) die "Invalid --mode: $mode (expected: both|codex|standard)" ;;
+esac
+
+if [[ "$worktree_pick" == "true" ]]; then
+  target_dir="$(select_worktree_dir "$target_dir")"
+  target_dir="$(realpath_of "$target_dir")"
+fi
+
 anchor_dir="$(realpath_of "$(anchor_dir_for "$target_dir")")"
 
 if [[ ! -d "$anchor_dir" ]]; then
   die "Directory does not exist: $anchor_dir"
+fi
+
+if [[ "$this_terminal" == "true" && "$mode" == "both" ]]; then
+  die "--this-terminal requires --mode codex|standard (can't open both in one terminal)"
 fi
 
 # If not in a git repo, fall back to DEFAULT_DIR unless the user explicitly asked
@@ -113,19 +221,93 @@ if [[ ! -d "$anchor_dir" ]]; then
   die "Directory does not exist: $anchor_dir"
 fi
 
+if [[ "$reuse_tab" == "auto" ]]; then
+  # Prefer reusing an existing Windows Terminal tab when possible. Some setups
+  # don't propagate WT_* env vars reliably, so when we can't positively detect
+  # Windows Terminal we'll still *try* split-pane and fall back to new-tab if it
+  # fails.
+  if [[ -n "${WT_SESSION:-}" || -n "${WT_PROFILE_ID:-}" || -n "${WT_WINDOW_ID:-}" || -n "${WT_PANE:-}" || "${TERM_PROGRAM:-}" == "Windows_Terminal" ]]; then
+    reuse_tab="true"
+  else
+    reuse_tab="try"
+  fi
+fi
+
 if [[ "$status" == "true" ]]; then
   printf "target_dir=%s\n" "$target_dir"
   printf "anchor_dir=%s\n" "$anchor_dir"
-  printf "win_path=%s\n" "$(wslpath -w "$anchor_dir")"
+  printf "mode=%s\n" "$mode"
+  printf "this_terminal=%s\n" "$this_terminal"
+  printf "reuse_tab=%s\n" "$reuse_tab"
+  if command -v wslpath >/dev/null 2>&1; then
+    printf "win_path=%s\n" "$(wslpath -w "$anchor_dir")"
+  else
+    printf "win_path=%s\n" ""
+  fi
   exit 0
 fi
 
+if [[ "$this_terminal" == "true" ]]; then
+  if [[ ! -t 0 || ! -t 1 ]]; then
+    die "--this-terminal requires a TTY"
+  fi
+
+  require_cmd bash
+
+  interactive_shell="${SHELL:-}"
+  if [[ -z "${interactive_shell:-}" || ! -x "$interactive_shell" ]]; then
+    interactive_shell="$(command -v bash)"
+  fi
+
+  profile="$mode"
+  bash -lc 'cd "$1" && (codex -p "$2" || true); exec "$3"' bash "$anchor_dir" "$profile" "$interactive_shell"
+  exit 0
+fi
+
+require_cmd wslpath
 require_cmd wt.exe
 require_cmd wsl.exe
 
 # Convert WSL path to Windows path for wt.exe
 WIN_PATH="$(wslpath -w "$anchor_dir")"
 
-wt.exe -w 0 \
-  new-tab -p "Ubuntu" -d "$WIN_PATH" --title "Codex" --tabColor "#FFA500" wsl.exe -d Ubuntu -- bash -ic "cd '$anchor_dir' && (codex -p codex || true) && exec bash" \; \
-  split-pane -V -p "Ubuntu" -d "$WIN_PATH" --title "Standard" --tabColor "#FFA500" wsl.exe -d Ubuntu -- bash -ic "cd '$anchor_dir' && (codex -p standard || true) && exec bash"
+codex_cmd=(wsl.exe -d Ubuntu -- bash -ic "cd '$anchor_dir' && (codex -p codex || true) && exec bash")
+standard_cmd=(wsl.exe -d Ubuntu -- bash -ic "cd '$anchor_dir' && (codex -p standard || true) && exec bash")
+
+wt_split() {
+  # Note: split-pane only starts a command in the *new* pane; the current pane
+  # is left untouched. With --mode both this will create two new panes.
+  case "$mode" in
+    codex)
+      wt.exe -w 0 split-pane -V -p "Ubuntu" -d "$WIN_PATH" --title "Codex" --tabColor "#FFA500" "${codex_cmd[@]}"
+      ;;
+    standard)
+      wt.exe -w 0 split-pane -V -p "Ubuntu" -d "$WIN_PATH" --title "Standard" --tabColor "#FFA500" "${standard_cmd[@]}"
+      ;;
+    both)
+      wt.exe -w 0 \
+        split-pane -V -p "Ubuntu" -d "$WIN_PATH" --title "Codex" --tabColor "#FFA500" "${codex_cmd[@]}" \; \
+        split-pane -H -p "Ubuntu" -d "$WIN_PATH" --title "Standard" --tabColor "#FFA500" "${standard_cmd[@]}"
+      ;;
+  esac
+}
+
+if [[ "$reuse_tab" == "true" || "$reuse_tab" == "try" ]]; then
+  if wt_split; then
+    exit 0
+  fi
+fi
+
+case "$mode" in
+  codex)
+    wt.exe -w 0 new-tab -p "Ubuntu" -d "$WIN_PATH" --title "Codex" --tabColor "#FFA500" "${codex_cmd[@]}"
+    ;;
+  standard)
+    wt.exe -w 0 new-tab -p "Ubuntu" -d "$WIN_PATH" --title "Standard" --tabColor "#FFA500" "${standard_cmd[@]}"
+    ;;
+  both)
+    wt.exe -w 0 \
+      new-tab -p "Ubuntu" -d "$WIN_PATH" --title "Codex" --tabColor "#FFA500" "${codex_cmd[@]}" \; \
+      split-pane -V -p "Ubuntu" -d "$WIN_PATH" --title "Standard" --tabColor "#FFA500" "${standard_cmd[@]}"
+    ;;
+esac

@@ -21,6 +21,9 @@ kill_session=false
 kill_ids=""
 status=false
 clean_sessions=false
+worktree_pick=false
+mode="both"
+attach_here=false
 
 usage() {
   cat <<'USAGE'
@@ -33,6 +36,12 @@ By default, if DIR is inside a git repo, this anchors to the repo root. Use
 --here to anchor to the exact DIR instead.
 
 Options:
+  -w, --worktree       Select a git worktree interactively (requires git repo)
+  -m, --mode MODE      Open panes for MODE: both|codex|standard (default: both)
+  -c                  Shortcut for --mode codex
+  -t                  Shortcut for --mode standard
+  -b                  Shortcut for --mode both
+  -T, --this-terminal  Attach to tmux in this terminal (no WezTerm)
   -n, --no-wezterm    Do not open WezTerm
   -s, --setup         Also create a setup window (uv sync && just q)
   -H, --here          Anchor session to DIR (not git repo root)
@@ -227,6 +236,59 @@ print(os.path.realpath(sys.argv[1]))
 PY
 }
 
+select_worktree_dir() {
+  local dir="$1"
+  git -C "$dir" rev-parse --show-toplevel >/dev/null 2>&1 || die "--worktree requires a git repo (DIR=$dir)"
+
+  local entries
+  entries="$(git -C "$dir" worktree list --porcelain 2>/dev/null || true)"
+  [[ -n "${entries:-}" ]] || die "No git worktrees found (DIR=$dir)"
+
+  if command -v fzf >/dev/null 2>&1; then
+    local picked
+    picked="$(
+      printf "%s\n" "$entries" \
+        | awk '
+            BEGIN { p=""; b=""; d="" }
+            $1=="worktree" { if (p!="") { printf "%s\t%s\n", p, (b==""?d:b) } p=$2; b=""; d="" }
+            $1=="branch" { b=$2 }
+            $1=="detached" { d="(detached)" }
+            END { if (p!="") { printf "%s\t%s\n", p, (b==""?d:b) } }
+          ' \
+        | fzf --prompt="Worktree> " \
+        | cut -f1
+    )"
+    [[ -n "${picked:-}" ]] || die "No worktree selected"
+    printf "%s" "$picked"
+    return 0
+  fi
+
+  local paths
+  paths="$(printf "%s\n" "$entries" | awk '$1=="worktree"{print $2}')"
+  [[ -n "${paths:-}" ]] || die "No git worktrees found (DIR=$dir)"
+
+  local i=1
+  say "Worktrees:"
+  while IFS= read -r p; do
+    [[ -n "$p" ]] || continue
+    local b
+    b="$(printf "%s\n" "$entries" | awk -v want="$p" '
+      $1=="worktree"{p=$2}
+      $1=="branch" && p==want {print $2; exit}
+      $1=="detached" && p==want {print "(detached)"; exit}
+    ')"
+    [[ -n "${b:-}" ]] || b="(unknown)"
+    say "  $i) $p  $b"
+    i=$((i + 1))
+  done <<< "$paths"
+
+  local pick
+  prompt_read "Select worktree (1-$((i - 1))): " pick || die "Selection failed"
+  [[ "$pick" =~ ^[0-9]+$ ]] || die "Invalid selection: $pick"
+  (( pick >= 1 && pick < i )) || die "Out of range selection: $pick"
+  printf "%s\n" "$paths" | sed -n "${pick}p"
+}
+
 anchor_dir_for() {
   local dir="$1"
   if [[ "$use_here" == "true" ]]; then
@@ -263,6 +325,12 @@ repo_name_for_git_dir() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    -w|--worktree) worktree_pick=true; shift ;;
+    -m|--mode) mode="${2:-}"; shift 2 ;;
+    -c) mode="codex"; shift ;;
+    -t) mode="standard"; shift ;;
+    -b) mode="both"; shift ;;
+    -T|--this-terminal) attach_here=true; open_wezterm=false; shift ;;
     -n|--no-wezterm) open_wezterm=false; shift ;;
     -s|--setup) run_setup=true; shift ;;
     -H|--here) use_here=true; shift ;;
@@ -313,6 +381,17 @@ if [[ -z "$target_dir" ]]; then
 fi
 
 target_dir="$(realpath_of "$target_dir")"
+
+case "$mode" in
+  both|codex|standard) ;;
+  *) die "Invalid --mode: $mode (expected: both|codex|standard)" ;;
+esac
+
+if [[ "$worktree_pick" == "true" ]]; then
+  target_dir="$(select_worktree_dir "$target_dir")"
+  target_dir="$(realpath_of "$target_dir")"
+fi
+
 anchor_dir="$(realpath_of "$(anchor_dir_for "$target_dir")")"
 
 repo_name="$(basename "$anchor_dir")"
@@ -369,6 +448,8 @@ if [[ "$status" == "true" ]]; then
   say "    target_dir: $target_dir"
   say "    anchor_dir: $anchor_dir"
   say "    in_git_repo: $in_git_repo"
+  say "    mode:        $mode"
+  say "    attach_here: $attach_here"
   say "    session:     $session"
   say "    exists:      $(tmux has-session -t "$session" 2>/dev/null && echo yes || echo no)"
   if tmux has-session -t "$session" 2>/dev/null; then
@@ -396,7 +477,18 @@ if [[ "$fresh_session" == "true" ]] && tmux has-session -t "$session" 2>/dev/nul
   tmux kill-session -t "$session" || true
 fi
 
-ensure_tmux_layout "$session" "$anchor_dir" "$run_setup"
+ensure_tmux_layout "$session" "$anchor_dir" "$run_setup" "$mode"
+
+if [[ "$attach_here" == "true" ]]; then
+  say ""
+  say "==> tmux attach"
+  if [[ -n "${TMUX:-}" ]]; then
+    tmux switch-client -t "$session"
+  else
+    tmux new -A -s "$session"
+  fi
+  exit 0
+fi
 
 if [[ "$open_wezterm" == "true" ]]; then
   say ""

@@ -142,8 +142,14 @@ ensure_tmux_layout() {
   local session="$1"
   local cwd="$2"
   local create_setup_window="${3:-true}"
+  local mode="${4:-both}"
 
   require_cmd tmux
+
+  case "$mode" in
+    both|codex|standard) ;;
+    *) die "Invalid mode: $mode (expected: both|codex|standard)" ;;
+  esac
 
   if ! tmux has-session -t "$session" 2>/dev/null; then
     local shell="${SHELL:-/bin/zsh}"
@@ -153,11 +159,21 @@ ensure_tmux_layout() {
 
     local pane1 pane2
     pane1="$(tmux display-message -p -t "${session}:codex" '#{pane_id}')"
-    pane2="$(tmux split-window -h -P -F '#{pane_id}' -t "${session}:codex" -c "$cwd")"
-    tmux select-layout -t "${session}:codex" even-horizontal >/dev/null 2>&1 || true
 
-    tmux send-keys -t "$pane1" "cd \"$cwd\" && (codex -p codex || true) && exec \"$shell\" -l" C-m
-    tmux send-keys -t "$pane2" "cd \"$cwd\" && (codex -p standard || true) && exec \"$shell\" -l" C-m
+    if [[ "$mode" == "both" ]]; then
+      pane2="$(tmux split-window -h -P -F '#{pane_id}' -t "${session}:codex" -c "$cwd")"
+      tmux select-layout -t "${session}:codex" even-horizontal >/dev/null 2>&1 || true
+    fi
+
+    if [[ "$mode" == "codex" || "$mode" == "both" ]]; then
+      tmux send-keys -t "$pane1" "cd \"$cwd\" && (codex -p codex || true) && exec \"$shell\" -l" C-m
+    else
+      tmux send-keys -t "$pane1" "cd \"$cwd\" && (codex -p standard || true) && exec \"$shell\" -l" C-m
+    fi
+
+    if [[ "$mode" == "both" ]]; then
+      tmux send-keys -t "$pane2" "cd \"$cwd\" && (codex -p standard || true) && exec \"$shell\" -l" C-m
+    fi
 
     if [[ "$create_setup_window" == "true" ]]; then
       tmux new-window -t "$session" -n setup -c "$cwd"
