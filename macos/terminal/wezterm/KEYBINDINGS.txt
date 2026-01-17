@@ -21,6 +21,9 @@ tmux essentials (works in any client: SSH/phone/WezTerm):
   Prefix          Ctrl+b
   Windows         Prefix+c (new), Prefix+n/p (next/prev), Prefix+w (list), Prefix+1..9 (jump)
   Panes           Prefix+% (L/R split), Prefix+" (T/B split), Prefix+o (next pane), Prefix+arrows (move)
+  Panes (more)    Prefix+! (pane → new window), Prefix+z (zoom), Prefix+q (show numbers), Prefix+; (last pane)
+  Rearrange       Prefix+{ / } (swap), Prefix+Ctrl+o (rotate), Prefix+Space (cycle layout)
+  Move pane       Prefix+: join-pane -h/-v -s <src-pane> -t <dst-pane/window> (or swap-pane -s <a> -t <b>)
   Kill            Prefix+x (kill pane, no confirm), Prefix+& (kill window, confirm)
   Detach          Prefix+d
   Panes (no prefix) Alt+i/j/k/l (up/left/down/right)
