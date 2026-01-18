@@ -44,6 +44,7 @@ Options:
   -t                  Shortcut for --mode standard
   -b                  Shortcut for --mode both
   -T, --this-terminal  Attach to tmux in this terminal (no WezTerm)
+  -N, --new-tab       No-op on macOS (compat with WSL dev-tabs)
   -n, --no-wezterm    Do not open WezTerm
   -s, --setup         Also create a setup window (uv sync && just q)
   -H, --here          Anchor session to DIR (not git repo root)
@@ -359,6 +360,7 @@ while [[ $# -gt 0 ]]; do
     -t) mode="standard"; shift ;;
     -b) mode="both"; shift ;;
     -T|--this-terminal) attach_here=true; open_wezterm=false; shift ;;
+    -N|--new-tab) shift ;; # compat no-op
     -n|--no-wezterm) open_wezterm=false; shift ;;
     -s|--setup) run_setup=true; shift ;;
     -H|--here) use_here=true; shift ;;

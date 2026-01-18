@@ -2,11 +2,11 @@
 # Creates a new git worktree for agentic development
 #
 # Usage:
-#   new-worktree docs-ai/tasks/TODO-observability-baseline-emitter.md
 #   new-worktree --branch feat/my-feature
-#   new-worktree docs-ai/tasks/TODO-foo.md --from develop
+#   new-worktree --branch feat/my-feature --from develop
+#   new-worktree --pick-code
 
-set -e
+set -euo pipefail
 
 # Path helpers
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,7 +20,106 @@ REPO_ROOT="$HOME/projects/budgeat"
 WORKTREES_DIR="$HOME/projects/budgeat.worktrees"
 BASE_BRANCH="main"
 BRANCH_NAME=""
-TASK_FILE=""
+OPEN_CODE=false
+PICK_CODE=false
+
+usage() {
+    echo "Usage:"
+    echo "  new-worktree --branch NAME [OPTIONS]"
+    echo "  new-worktree --pick-code"
+    echo ""
+    echo "Options:"
+    echo "  --branch, -b NAME     Branch name for the new worktree (required)"
+    echo "  --from, -f BRANCH     Base branch to create from (default: main)"
+    echo "  --copylist, -l FILE   Copy manifest file of repo-relative paths"
+    echo "                       (default: $REPO_ROOT/.worktree.copylist if present,"
+    echo "                                 else $SCRIPT_COPY_MANIFEST)"
+    echo "  --code, -C            Also open VS Code for the new worktree (opt-in)"
+    echo "  --pick-code, -c       Select an existing worktree (fzf if available) and open VS Code"
+    echo "  --help, -h            Show this help"
+}
+
+die() {
+    printf "Error: %s\n" "$*" >&2
+    exit 1
+}
+
+require_cmd() {
+    command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
+}
+
+prompt_read() {
+    local prompt="$1"
+    local var_name="$2"
+    if [[ -r /dev/tty ]]; then
+        read -r -p "$prompt" "$var_name" </dev/tty || return 1
+    else
+        read -r -p "$prompt" "$var_name" || return 1
+    fi
+}
+
+select_worktree_dir() {
+    local dir="$1"
+    git -C "$dir" rev-parse --show-toplevel >/dev/null 2>&1 || die "--pick-code requires a git repo (REPO_ROOT=$dir)"
+
+    local entries
+    entries="$(git -C "$dir" worktree list --porcelain 2>/dev/null || true)"
+    [[ -n "${entries:-}" ]] || die "No git worktrees found (REPO_ROOT=$dir)"
+
+    if command -v fzf >/dev/null 2>&1; then
+        local picked
+        picked="$(
+            printf "%s\n" "$entries" \
+                | awk '
+                    BEGIN { p=""; b=""; d="" }
+                    $1=="worktree" { if (p!="") { printf "%s\t%s\n", p, (b==""?d:b) } p=$2; b=""; d="" }
+                    $1=="branch" { b=$2 }
+                    $1=="detached" { d="(detached)" }
+                    END { if (p!="") { printf "%s\t%s\n", p, (b==""?d:b) } }
+                  ' \
+                | fzf --prompt="Worktree> " \
+                | cut -f1
+        )"
+        [[ -n "${picked:-}" ]] || die "No worktree selected"
+        printf "%s" "$picked"
+        return 0
+    fi
+
+    local paths
+    paths="$(printf "%s\n" "$entries" | awk '$1=="worktree"{print $2}')"
+    [[ -n "${paths:-}" ]] || die "No git worktrees found (REPO_ROOT=$dir)"
+
+    local i=1
+    printf "Worktrees:\n" >&2
+    while IFS= read -r p; do
+        [[ -n "$p" ]] || continue
+        local b
+        b="$(printf "%s\n" "$entries" | awk -v want="$p" '
+          $1=="worktree"{p=$2}
+          $1=="branch" && p==want {print $2; exit}
+          $1=="detached" && p==want {print "(detached)"; exit}
+        ')"
+        [[ -n "${b:-}" ]] || b="(unknown)"
+        printf "  %d) %s  %s\n" "$i" "$p" "$b" >&2
+        i=$((i + 1))
+    done <<< "$paths"
+
+    local pick
+    prompt_read "Select worktree (1-$((i - 1))): " pick || die "Selection failed"
+    [[ "$pick" =~ ^[0-9]+$ ]] || die "Invalid selection: $pick"
+    (( pick >= 1 && pick < i )) || die "Out of range selection: $pick"
+    printf "%s\n" "$paths" | sed -n "${pick}p"
+}
+
+open_vscode_for_worktree() {
+    local worktree_path="$1"
+    require_cmd code
+    if [[ -f "$worktree_path/budgeat.code-workspace" ]]; then
+        code "$worktree_path/budgeat.code-workspace" || true
+    else
+        code "$worktree_path" || true
+    fi
+}
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -33,7 +132,7 @@ while [[ $# -gt 0 ]]; do
         for ((i=0; i<${#short_cluster}; i++)); do
             ch="${short_cluster:i:1}"
             case "$ch" in
-                b|f|c)
+                b|f|l)
                     if (( i + 1 < ${#short_cluster} )); then
                         expanded+=("-$ch" "${short_cluster:i+1}")
                     else
@@ -59,35 +158,42 @@ while [[ $# -gt 0 ]]; do
             BASE_BRANCH="$2"
             shift 2
             ;;
-        --copylist|-c)
+        --copylist|-l)
             COPY_MANIFEST_OVERRIDE="$2"
             shift 2
             ;;
+        --code)
+            OPEN_CODE=true
+            shift
+            ;;
+        -C)
+            OPEN_CODE=true
+            shift
+            ;;
+        --pick-code)
+            PICK_CODE=true
+            shift
+            ;;
+        -c)
+            PICK_CODE=true
+            shift
+            ;;
         --help|-h)
-            echo "Usage: new-worktree [TASK_FILE] [OPTIONS]"
-            echo ""
-            echo "Arguments:"
-            echo "  TASK_FILE    Path to task file (e.g., docs-ai/tasks/TODO-foo.md)"
-            echo "               Branch name is derived from filename"
-            echo ""
-            echo "You can use getopts-style short options, e.g. -fdevelop or -bfeat/my-feature"
-            echo ""
-            echo "Options:"
-            echo "  --branch, -b NAME   Explicit branch name (overrides task file derivation)"
-            echo "  --from, -f BRANCH   Base branch to create from (default: main)"
-            echo "  --copylist, -c FILE Copy manifest file of repo-relative paths"
-            echo "                    (default: $REPO_ROOT/.worktree.copylist if present,"
-            echo "                              else $SCRIPT_COPY_MANIFEST)"
-            echo "  --help, -h          Show this help"
+            usage
             exit 0
             ;;
         *)
-            # Assume it's a task file path
-            TASK_FILE="$1"
-            shift
+            die "Unknown argument: $1"
             ;;
     esac
 done
+
+if [[ "$PICK_CODE" == "true" ]]; then
+    require_cmd git
+    worktree_path="$(select_worktree_dir "$REPO_ROOT")"
+    open_vscode_for_worktree "$worktree_path"
+    exit 0
+fi
 
 REPO_COPY_MANIFEST="$REPO_ROOT/.worktree.copylist"
 if [[ -n "$COPY_MANIFEST_OVERRIDE" ]]; then
@@ -98,23 +204,7 @@ else
     COPY_MANIFEST="$SCRIPT_COPY_MANIFEST"
 fi
 
-# Derive branch name from task file if not explicitly provided
-if [[ -z "$BRANCH_NAME" ]]; then
-    if [[ -z "$TASK_FILE" ]]; then
-        echo "Error: Provide a task file or --branch name"
-        echo "Usage: new-worktree docs-ai/tasks/TODO-foo.md"
-        exit 1
-    fi
-
-    # Extract filename without path and extension
-    # e.g., docs-ai/tasks/TODO-observability-baseline-emitter.md -> TODO-observability-baseline-emitter
-    filename=$(basename "$TASK_FILE" .md)
-
-    # Remove TODO- prefix and convert to branch name
-    # e.g., TODO-observability-baseline-emitter -> feat/observability-baseline-emitter
-    branch_suffix="${filename#TODO-}"
-    BRANCH_NAME="feat/$branch_suffix"
-fi
+[[ -n "$BRANCH_NAME" ]] || die "Missing required --branch NAME"
 
 # Create directory name from branch (replace / with -)
 dir_name="${BRANCH_NAME//\//-}"
@@ -131,8 +221,13 @@ mkdir -p "$WORKTREES_DIR"
 
 # Create the worktree
 cd "$REPO_ROOT"
+require_cmd git
 git fetch origin "$BASE_BRANCH"
-git worktree add --no-track -b "$BRANCH_NAME" "$WORKTREE_PATH" "origin/$BASE_BRANCH"
+if [[ -d "$WORKTREE_PATH" && -e "$WORKTREE_PATH/.git" ]]; then
+    echo "==> Worktree already exists; reusing"
+else
+    git worktree add --no-track -b "$BRANCH_NAME" "$WORKTREE_PATH" "origin/$BASE_BRANCH"
+fi
 
 echo ""
 echo "==> Copying gitignored files"
@@ -211,20 +306,11 @@ else
     fi
 fi
 
-echo ""
-echo "==> Opening VS Code"
-code "$WORKTREE_PATH/budgeat.code-workspace"
-
-echo ""
-echo "==> Running setup in new terminal (uv sync && just q)"
-WIN_PATH=$(wslpath -w "$WORKTREE_PATH")
-wt.exe -w 0 new-tab -p "Ubuntu" -d "$WIN_PATH" --title "Setup: $dir_name" wsl.exe -d Ubuntu -- bash -ic "cd '$WORKTREE_PATH' && uv sync && just q"
-
-echo ""
-echo "✓ Worktree created at: $WORKTREE_PATH"
-echo "  Setup running in new terminal tab"
-if [[ -n "$TASK_FILE" ]]; then
+if [[ "$OPEN_CODE" == "true" ]]; then
     echo ""
-    echo "Task file reference for your agent:"
-    echo "  @$TASK_FILE"
+    echo "==> Opening VS Code (opt-in)"
+    open_vscode_for_worktree "$WORKTREE_PATH"
 fi
+
+echo ""
+echo "✓ Worktree ready: $WORKTREE_PATH"
