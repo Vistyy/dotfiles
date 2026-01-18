@@ -29,6 +29,8 @@ Examples:
   new-worktree --branch feat/my-feature
   new-worktree docs-ai/tasks/TODO-foo.md --from develop
 
+You can use getopts-style short options, e.g. -fdevelop or -bfeat/my-feature
+
 Options:
   -b, --branch NAME   Explicit branch name (overrides task derivation)
   -f, --from BRANCH   Base branch to create from (default: main)
@@ -43,6 +45,32 @@ USAGE
 }
 
 while [[ $# -gt 0 ]]; do
+  # Support grouping short flags, e.g. `-hfcFILE` (getopts-style).
+  # Options that take a value follow getopts behavior:
+  # -bVALUE uses VALUE; -b VALUE uses next argv.
+  if [[ "${1:-}" =~ ^-[^-]{2,}$ ]]; then
+    short_cluster="${1#-}"
+    expanded=()
+    for ((i=0; i<${#short_cluster}; i++)); do
+      ch="${short_cluster:i:1}"
+      case "$ch" in
+        b|f|c)
+          if (( i + 1 < ${#short_cluster} )); then
+            expanded+=("-$ch" "${short_cluster:i+1}")
+          else
+            expanded+=("-$ch")
+          fi
+          break
+          ;;
+        *)
+          expanded+=("-$ch")
+          ;;
+      esac
+    done
+    set -- "${expanded[@]}" "${@:2}"
+    continue
+  fi
+
   case "$1" in
     -b|--branch) branch="${2:-}"; shift 2 ;;
     -f|--from) base_branch="${2:-}"; shift 2 ;;

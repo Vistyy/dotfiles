@@ -46,6 +46,8 @@ Opens a Windows Terminal tab with split panes running Codex prompts in WSL.
 By default, if DIR is inside a git repo, this anchors to the repo root. Use
 --here to anchor to the exact DIR instead.
 
+You can group short flags (that take no value), e.g. `-Ttw`.
+
 Options:
   -w, --worktree  Select a git worktree interactively (requires git repo)
   -m, --mode MODE Open panes for MODE: both|codex|standard (default: both)
@@ -153,6 +155,32 @@ anchor_dir_for() {
 }
 
 while [[ $# -gt 0 ]]; do
+  # Support grouping short flags, e.g. `-Ttw` -> `-T -t -w`.
+  # Options that take a value (e.g. `-m`) follow getopts-style behavior:
+  # -mVALUE uses VALUE; -m VALUE uses next argv.
+  if [[ "$1" =~ ^-[^-]{2,}$ ]]; then
+    short_cluster="${1#-}"
+    expanded=()
+    for ((i=0; i<${#short_cluster}; i++)); do
+      ch="${short_cluster:i:1}"
+      case "$ch" in
+        m)
+          if (( i + 1 < ${#short_cluster} )); then
+            expanded+=("-m" "${short_cluster:i+1}")
+          else
+            expanded+=("-m")
+          fi
+          break
+          ;;
+        *)
+          expanded+=("-$ch")
+          ;;
+      esac
+    done
+    set -- "${expanded[@]}" "${@:2}"
+    continue
+  fi
+
   case "$1" in
     -w|--worktree) worktree_pick=true; shift ;;
     -m|--mode) mode="${2:-}"; shift 2 ;;

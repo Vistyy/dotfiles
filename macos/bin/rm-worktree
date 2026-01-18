@@ -214,71 +214,113 @@ remove_worktree() {
   fi
 }
 
-case "${1:-}" in
-  --list|-l)
-    require_cmd git
-    require_cmd gh
-    require_cmd jq
-    echo ""
-    echo -e "${BOLD}Git Worktrees${NC} ${DIM}($WORKTREES_DIR)${NC}"
-    echo ""
-    worktrees="$(get_worktrees)"
-    if [[ -z "$worktrees" ]]; then
-      echo "No worktrees found."
-    else
-      echo "$worktrees" | format_table
-    fi
-    echo ""
+print_help() {
+  echo "Usage: rm-worktree [OPTIONS] [BRANCH]"
+  echo ""
+  echo "Remove git worktrees (and associated tmux session) interactively or by branch name."
+  echo ""
+  echo "You can group short flags (that take no value), e.g. -lh"
+  echo ""
+  echo "Options:"
+  echo "  --list, -l    List all worktrees with PR status"
+  echo "  --help, -h    Show this help"
+  echo ""
+  echo "Examples:"
+  echo "  rm-worktree                # Interactive selection"
+  echo "  rm-worktree feat/my-feat   # Remove specific branch"
+}
+
+list_worktrees() {
+  require_cmd git
+  require_cmd gh
+  require_cmd jq
+  echo ""
+  echo -e "${BOLD}Git Worktrees${NC} ${DIM}($WORKTREES_DIR)${NC}"
+  echo ""
+  worktrees="$(get_worktrees)"
+  if [[ -z "$worktrees" ]]; then
+    echo "No worktrees found."
+  else
+    echo "$worktrees" | format_table
+  fi
+  echo ""
+}
+
+list=false
+help=false
+branch=""
+
+while [[ $# -gt 0 ]]; do
+  # Support grouping short flags, e.g. `-lh` -> `-l -h`.
+  if [[ "${1:-}" =~ ^-[^-]{2,}$ ]]; then
+    short_cluster="${1#-}"
+    expanded=()
+    for ((i=0; i<${#short_cluster}; i++)); do
+      ch="${short_cluster:i:1}"
+      expanded+=("-$ch")
+    done
+    set -- "${expanded[@]}" "${@:2}"
+    continue
+  fi
+
+  case "${1:-}" in
+    --list|-l) list=true; shift ;;
+    --help|-h) help=true; shift ;;
+    --) shift; break ;;
+    -*)
+      die "Unknown option: $1"
+      ;;
+    *)
+      if [[ -z "$branch" ]]; then
+        branch="$1"
+        shift
+      else
+        die "Unexpected extra arg: $1"
+      fi
+      ;;
+  esac
+done
+
+if [[ "$help" == "true" ]]; then
+  print_help
+  exit 0
+fi
+
+if [[ "$list" == "true" ]]; then
+  list_worktrees
+  exit 0
+fi
+
+require_cmd git
+require_cmd gh
+require_cmd jq
+
+if [[ -n "$branch" ]]; then
+  remove_worktree "$branch"
+else
+  echo -e "${DIM}Fetching worktrees and PR status...${NC}"
+  worktrees="$(get_worktrees)"
+
+  if [[ -z "$worktrees" ]]; then
+    echo "No worktrees found."
     exit 0
-    ;;
-  --help|-h)
-    echo "Usage: rm-worktree [OPTIONS] [BRANCH]"
-    echo ""
-    echo "Remove git worktrees (and associated tmux session) interactively or by branch name."
-    echo ""
-    echo "Options:"
-    echo "  --list, -l    List all worktrees with PR status"
-    echo "  --help, -h    Show this help"
-    echo ""
-    echo "Examples:"
-    echo "  rm-worktree                # Interactive selection"
-    echo "  rm-worktree feat/my-feat   # Remove specific branch"
+  fi
+
+  if command -v fzf >/dev/null 2>&1; then
+    selected="$(select_with_fzf "$worktrees")"
+  else
+    selected="$(select_with_menu "$worktrees")"
+  fi
+
+  if [[ -z "$selected" ]]; then
+    echo "No selection made."
     exit 0
-    ;;
-  "")
-    require_cmd git
-    require_cmd gh
-    require_cmd jq
-    echo -e "${DIM}Fetching worktrees and PR status...${NC}"
-    worktrees="$(get_worktrees)"
+  fi
 
-    if [[ -z "$worktrees" ]]; then
-      echo "No worktrees found."
-      exit 0
-    fi
-
-    if command -v fzf >/dev/null 2>&1; then
-      selected="$(select_with_fzf "$worktrees")"
-    else
-      selected="$(select_with_menu "$worktrees")"
-    fi
-
-    if [[ -z "$selected" ]]; then
-      echo "No selection made."
-      exit 0
-    fi
-
-    while IFS= read -r branch; do
-      [[ -n "$branch" ]] && remove_worktree "$branch"
-    done < <(printf '%s\n' "$selected")
-    ;;
-  *)
-    require_cmd git
-    require_cmd gh
-    require_cmd jq
-    remove_worktree "$1"
-    ;;
-esac
+  while IFS= read -r branch; do
+    [[ -n "$branch" ]] && remove_worktree "$branch"
+  done < <(printf '%s\n' "$selected")
+fi
 
 echo ""
 echo -e "${GREEN}✓ Cleanup complete${NC}"

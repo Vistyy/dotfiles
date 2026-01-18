@@ -24,6 +24,32 @@ TASK_FILE=""
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
+    # Support grouping short flags, e.g. `-hfcFILE` (getopts-style).
+    # Options that take a value follow getopts behavior:
+    # -bVALUE uses VALUE; -b VALUE uses next argv.
+    if [[ "${1:-}" =~ ^-[^-]{2,}$ ]]; then
+        short_cluster="${1#-}"
+        expanded=()
+        for ((i=0; i<${#short_cluster}; i++)); do
+            ch="${short_cluster:i:1}"
+            case "$ch" in
+                b|f|c)
+                    if (( i + 1 < ${#short_cluster} )); then
+                        expanded+=("-$ch" "${short_cluster:i+1}")
+                    else
+                        expanded+=("-$ch")
+                    fi
+                    break
+                    ;;
+                *)
+                    expanded+=("-$ch")
+                    ;;
+            esac
+        done
+        set -- "${expanded[@]}" "${@:2}"
+        continue
+    fi
+
     case $1 in
         --branch|-b)
             BRANCH_NAME="$2"
@@ -43,6 +69,8 @@ while [[ $# -gt 0 ]]; do
             echo "Arguments:"
             echo "  TASK_FILE    Path to task file (e.g., docs-ai/tasks/TODO-foo.md)"
             echo "               Branch name is derived from filename"
+            echo ""
+            echo "You can use getopts-style short options, e.g. -fdevelop or -bfeat/my-feature"
             echo ""
             echo "Options:"
             echo "  --branch, -b NAME   Explicit branch name (overrides task file derivation)"
