@@ -58,6 +58,17 @@ If you discover that the problem is upstream (bad slicing / missing spec), prefe
 
 This prompt (`work-item-plan`) is for producing a **code-monkey executable** `plan.md` once the work item is properly specified.
 
+## Interactive Work Items (Important)
+
+Some work items are explicitly **interactive** (example: `spec.md` contains `**Type:** interactive`).
+
+For an interactive work item:
+- The resulting `plan.md` MUST be written as an **interactive execution plan**, not a “fill it in yourself” plan.
+- The plan MUST NOT rely on the agent inventing “taste” values (copy, naming, art direction, tone, aesthetic rules, etc.).
+- Instead, the plan MUST include explicit steps to **ask the user** for each missing/subjective input and to **pause until the user answers**, one question at a time.
+
+If `WORK_ITEM_SPEC` does not clearly state whether the work item is interactive, you MUST treat that as a material uncertainty and ask the user (Question Format) before writing `plan.md`.
+
 ## Spec vs Plan Responsibilities (Non-Negotiable)
 
 This prompt operates at the **work item implementation plan** level.
@@ -243,6 +254,21 @@ In that case, STOP and ask **one** Question Format question:
 
 You MUST read `WORK_ITEM_SPEC` first.
 
+#### Determine Execution Mode (Required)
+
+After reading `WORK_ITEM_SPEC`, determine `EXECUTION_MODE`:
+
+- Known values: `interactive`, `autonomous`.
+- If `WORK_ITEM_SPEC` contains `**Type:** interactive`, then `EXECUTION_MODE = interactive` (confirmed).
+- If `WORK_ITEM_SPEC` contains `**Type:** autonomous`, then `EXECUTION_MODE = autonomous` (confirmed) **unless** you would need to invent “taste” values to complete the work; in that case, STOP and ask the user whether to switch to interactive.
+- If `WORK_ITEM_SPEC` contains `**Type:**` but it is not one of the known values, treat that as ambiguous and ask the user to choose (Question Format).
+- If `WORK_ITEM_SPEC` does not include a `**Type:**` field, treat it as ambiguous and ask the user to choose (Question Format).
+
+When `EXECUTION_MODE = interactive`, you MUST ensure the plan you write:
+- is approval-gated / pause-driven (explicit “STOP and ask” steps),
+- captures user-provided inputs durably in-repo (usually in the target artifact file),
+- and contains zero “make up a direction/value” steps.
+
 Then you MUST locate and read the *parent* docs that define the work item’s boundaries and integration context:
 
 - **Parent Feature docs** (required when they exist):
@@ -302,6 +328,17 @@ If any decisions were changed during this session, you MUST update `WORK_ITEM_SP
 Use `superpowers:writing-plans` to generate the plan and write/update `WORK_ITEM_PLAN`.
 
 If `plan.md` already exists, update it rather than starting over; preserve any content that is still correct and remove contradictions.
+
+#### Plan Must Record Execution Mode (Required)
+
+When you write/update `WORK_ITEM_PLAN`, you MUST record the chosen execution mode near the top of the plan (Recommended format):
+
+- `**Execution mode:** interactive` OR `**Execution mode:** autonomous`
+
+If `EXECUTION_MODE = interactive`, also ensure the plan’s Tasks explicitly include:
+- when to stop and ask the user for input,
+- the exact question to ask (1 at a time),
+- and how to validate the resulting artifact after the user answers.
 
 ### 5a. Task Verification Self-Audit (Required Before Writing plan.md)
 
