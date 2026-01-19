@@ -21,12 +21,14 @@ Create a high-confidence, immediately executable implementation plan for the ref
 
 1. Brainstorming to surface unknowns and design choices
 2. Settling (resolving) all material implementation details and uncertainties
-   - Treat any existing “ready-made” decisions (in `spec.md`, existing `plan.md`, ADRs, etc.) as *provisional inputs*, not unquestionable truth.
-   - If you spot a decision you don’t fully agree with (e.g., it seems risky, inconsistent, underspecified, or you see a clearly better option), you MUST surface it explicitly:
-     - State the issue and likely impact.
-     - Propose a **Recommended** alternative (plus 1–2 other options when useful).
-     - Record the outcome in the decision log.
-     - If changing the decision would alter scope/requirements, ask the user to confirm using **Question Format (MANDATORY)** — do not quietly accept the original decision.
+   - Treat explicit, unambiguous decisions (in `spec.md`, existing `plan.md`, ADRs, etc.) as **confirmed**. Do not re-confirm them in chat.
+   - Only raise a decision for user confirmation if:
+     - Sources conflict (e.g., `spec.md` vs ADR/design doc), or
+     - The decision text is unclear/underspecified and you would otherwise need to make an assumption to proceed.
+   - When you raise a decision:
+     - State the conflict/ambiguity and likely impact.
+     - Propose a **Recommended** option (plus 1–2 other options when useful).
+     - Ask the user to confirm using **Question Format (MANDATORY)**.
 3. Using the `superpowers:writing-plans` skill to produce the final plan
 4. Writing the plan to `plan.md` **in the same directory as** the work item’s `spec.md` **only after** all material uncertainties are resolved
 5. Ensuring the plan is “code-monkey executable”: a junior engineer can follow it end-to-end without second-guessing, extra research, or “checking around”
@@ -37,14 +39,15 @@ This task is **interactive**: if you need clarification, you MUST ask and wait. 
 
 ## Interaction Default (Important)
 
-Default behavior is **ledger-then-question**:
+Default behavior is **ledger-then-gate**:
 
 - In your **first** response, you MUST:
   1. Provide the **Context Read Ledger** (docs read + delivery-map wave/related slugs + related work-item specs opened), THEN
-  2. Ask **ONE** question using **Question Format (MANDATORY)**.
-- Only skip the initial question if the user explicitly says “skip questions” / “assume defaults”.
+  2. Do **exactly one** of:
+     - Ask **ONE** question using **Question Format (MANDATORY)**, OR
+     - If there is no material uncertainty, state **“No open questions remain”** and provide the required **Decision Confirmation Table**.
 
-If you have not asked the user at least one question in this thread, you must not write `plan.md` yet.
+If the user explicitly says “skip questions” / “assume defaults”, you MAY proceed without asking a question, but you MUST still obey Hard Gate (A/B).
 
 ## Related Prompts (Optional)
 
@@ -72,25 +75,13 @@ This prompt treats `spec.md` as the durable source of truth for **Decisions**.
 
 If you make a decision during this planning session that differs from what’s currently written in `spec.md` (or any referenced ADR/design doc), you MUST:
 
-1. **Make the change explicit** (in chat): record the old vs new decision in the **Decision Log** (see below).
+1. **Make the change explicit** (in chat): state what the spec/ADR says vs the proposed new decision.
 2. **Get confirmation** (Decision Confirmation Rule / Hard Gate).
 3. **Backfill the work item spec**: update `WORK_ITEM_SPEC` so its **Decisions** reflect the new, confirmed decision (and remove or rewrite any now-contradictory text).
 
 The goal is that the work item folder is self-contained and future planning/execution does not rediscover the same “fixed” ambiguity.
 
 When backfilling, prefer updating the existing **Decisions** section (and any contradictory prose) rather than adding new “history/changelog” sections unless the work-item docs already use one.
-
-### Decision Log (Required)
-
-Maintain a running Decision Log *in chat* throughout the session. Each entry must include:
-
-- Decision (what is being decided)
-- Previous spec/ADR position (what `spec.md`/ADR currently says)
-- New chosen option
-- Rationale (1–3 sentences, impact-focused)
-- Confirmation source: `spec.md` line / ADR / “user-confirmed in chat”
-
-If you have multiple decision changes pending, keep a short “Spec backfill queue” list in chat (file path + decision name) so the user can see what will be written back to `spec.md`.
 
 ## Documentation Stewardship (Non-Negotiable)
 
@@ -155,7 +146,7 @@ A decision is **MATERIAL** if it affects any of:
 - Schema invariants (constraints, nullability, cascades)
 - Data returned to downstream systems/features (pipelines, integrations, analytics)
 
-Recording a choice in a **Decision Log** is NOT a substitute for user confirmation when the decision is underspecified or scope-affecting.
+Noting a choice in chat is NOT a substitute for user confirmation when the decision is underspecified or scope-affecting.
 
 ## Decision Confirmation Rule (Non-Negotiable)
 
@@ -179,7 +170,7 @@ If any **material uncertainty** exists, you MUST choose (B).
 
 ### Hard Gate Extension (Non-Negotiable)
 
-If you have a recommendation *because you disagree or are not fully convinced* by a provisional input, you MUST ask a Question Format question **immediately** (Hard Gate B). You may not defer the question until after presenting a plan draft or after stating “No open questions remain”.
+If you encounter conflicting sources for a material decision (e.g., `spec.md` vs ADR/design doc), you MUST ask a Question Format question **immediately** (Hard Gate B). You may not defer the question until after presenting a plan draft or after stating “No open questions remain”.
 
 If ANY material decision’s source is not one of: (`spec.md` line / ADR / design doc) OR “user-confirmed in chat” (i.e., it’s your inference/default), you MUST choose (B).
 
