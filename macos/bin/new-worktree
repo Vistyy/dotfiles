@@ -17,6 +17,7 @@ branch=""
 base_branch="$DEFAULT_BASE_BRANCH"
 open_code=false
 pick_code=false
+run_setup=true
 
 usage() {
   cat <<USAGE
@@ -38,6 +39,7 @@ Options:
                     (default: $REPO_ROOT/.worktree.copylist if present,
                               else $script_copy_manifest)
   -C, --code          Also open VS Code for the new worktree (opt-in)
+  --no-setup          Do not run setup (uv sync && just q)
   -c, --pick-code     Select an existing worktree (fzf if available) and open VS Code
   -h, --help          Show help
 USAGE
@@ -116,6 +118,24 @@ open_vscode_for_worktree() {
   fi
 }
 
+run_setup_best_effort() {
+  local worktree_path="$1"
+
+  say ""
+  say "==> Running setup (uv sync && just q)"
+
+  (
+    set +e
+    cd "$worktree_path" || exit 0
+    uv sync && just q
+    rc=$?
+    if (( rc != 0 )); then
+      err "    Setup failed (exit $rc)"
+    fi
+    exit 0
+  )
+}
+
 while [[ $# -gt 0 ]]; do
   # Support grouping short flags, e.g. `-hfcFILE` (getopts-style).
   # Options that take a value follow getopts behavior:
@@ -148,6 +168,7 @@ while [[ $# -gt 0 ]]; do
     -f|--from) base_branch="${2:-}"; shift 2 ;;
     -l|--copylist) copy_manifest_override="${2:-}"; shift 2 ;;
     -C|--code) open_code=true; shift ;;
+    --no-setup) run_setup=false; shift ;;
     -c|--pick-code) pick_code=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *)
@@ -195,6 +216,10 @@ if [[ "$open_code" == "true" ]]; then
   say ""
   say "==> Opening VS Code (opt-in)"
   open_vscode_for_worktree "$worktree_path"
+fi
+
+if [[ "$run_setup" == "true" ]]; then
+  run_setup_best_effort "$worktree_path"
 fi
 
 say ""
