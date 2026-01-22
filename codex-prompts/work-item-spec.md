@@ -83,6 +83,15 @@ Your job is to produce a work item spec that makes sense **from this work item�
 - If the work item’s scope is “too broad to be safe”, you MUST propose a split rather than writing a vague spec.
 - If the work item’s “goal” would require enabling/adjacent work that isn’t captured anywhere, you MUST explicitly include that work in scope OR explicitly exclude it and capture it as a dependency / separate work item (user-confirmed).
 
+## Additional Work Items (Allowed; sometimes required)
+
+If, during scoping, you identify **additional work** that should be tracked separately (split, dependency, follow-up), you MUST NOT silently ignore it.
+
+- You MUST propose the additional work item(s) explicitly (recommended slugs + 1-line intent each).
+- If the user confirms creating them, you MUST create the corresponding work item folder(s) and write `spec.md` stubs (at minimum: Description, Status=`planned`, Scope, Acceptance Criteria).
+- You MUST update the feature `overview.md` Work Items table to include **all** newly created work items (not just the one referenced by `$ARGUMENTS`).
+- If the user does **not** confirm creating them, you MUST still record them as dependencies / follow-ups in the referenced work item `spec.md`.
+
 ## Second-order Requirements Sweep (Restricted; non-checklist)
 
 Before finalizing scope and acceptance criteria, do a quick **second-order requirements sweep** from this work item’s standpoint:

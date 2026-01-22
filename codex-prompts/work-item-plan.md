@@ -58,6 +58,17 @@ If you discover that the problem is upstream (bad slicing / missing spec), prefe
 
 This prompt (`work-item-plan`) is for producing a **code-monkey executable** `plan.md` once the work item is properly specified.
 
+## Additional Work Items (Allowed; do not ignore)
+
+During planning, you may discover work that should be tracked as **separate work items** (splits, prerequisites, follow-ups). You MUST NOT silently ignore these.
+
+- You MUST surface them explicitly in chat (recommended slugs + 1-line intent each).
+- If they are required to execute the referenced work item safely, you MUST either:
+  - include them in this work item’s scope (and backfill `spec.md` accordingly), OR
+  - mark them as blocking dependencies and ask the user to confirm creating separate work items (Question Format).
+- If the user confirms creating them, you MUST create the work item folder(s) and write `spec.md` stubs (at minimum: Description, Status=`planned`, Scope, Acceptance Criteria), and update the parent feature `overview.md` Work Items table to include them.
+- Unless the user explicitly asks otherwise, you should still write `plan.md` only for the work item referenced by `$ARGUMENTS`.
+
 ## Interactive Work Items (Important)
 
 Some work items are explicitly **interactive** (example: `spec.md` contains `**Type:** interactive`).
@@ -101,6 +112,17 @@ After Hard Gate (A) is satisfied and before making any edits under `docs-ai/docs
 If `documentation-stewardship` conflicts with this prompt, you MUST treat that as a blocking issue and ask the user for clarification before editing.
 
 When you write `plan.md`, you MUST explicitly restate this rule in the plan (e.g., in an “Execution Rules” section and/or in any Task that touches `docs-ai/docs/`).
+
+## Completion Doc Updates (Non-Negotiable)
+
+Every `plan.md` you write MUST include an explicit **near-the-end** Task to mark the work item as completed in documentation.
+
+- That Task MUST invoke / reference the `documentation-stewardship` skill **before** editing any files under `docs-ai/docs/`.
+- At minimum, mark completion by updating:
+  - The work item’s own status in `spec.md` (to `done`), and
+  - The parent feature `overview.md` Work Items table row for this work item (Status=`done`).
+- If `delivery-map.md` (or a wave brief) tracks this work item’s status, update it to `done` as part of the same Task.
+- The Task Verification for this “completion docs” Task MUST include a lightweight doc-appropriate check (or a clear manual verification checklist) rather than `just quality` by default, unless the repo’s norms require it.
 
 ## Plan Clarity Bar (Non-Negotiable)
 
