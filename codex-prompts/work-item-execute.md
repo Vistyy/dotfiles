@@ -8,7 +8,7 @@ description: Execute an existing work item implementation plan (plan.md) created
 $ARGUMENTS
 ```
 
-You **MUST** treat `$ARGUMENTS` as the *work item link* (or work-item path) that identifies what to execute.
+You **MUST** treat user input as the *work item link* (or work-item path) that identifies what to execute.
 
 Example arguments:
 ```text

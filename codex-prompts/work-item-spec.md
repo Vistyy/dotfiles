@@ -8,7 +8,7 @@ description: Define or repair a work item spec (spec.md) so it is small, unambig
 $ARGUMENTS
 ```
 
-You **MUST** treat `$ARGUMENTS` as the *work item link* (or intended work-item path) that identifies what to specify.
+You **MUST** treat user input as the *work item link* (or intended work-item path) that identifies what to specify.
 
 Example arguments:
 ```text

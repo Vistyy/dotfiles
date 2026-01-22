@@ -8,7 +8,7 @@ description: Start from a fuzzy goal, interview to lock requirements, then updat
 $ARGUMENTS
 ```
 
-Treat `$ARGUMENTS` as a **fuzzy intent** (“I want something done”) unless it clearly points at an existing initiative/feature/work-item path/slug.
+You **MUST** treat user input as a **fuzzy intent** (“I want something done”) unless it clearly points at an existing initiative/feature/work-item path/slug.
 
 Examples:
 ```text

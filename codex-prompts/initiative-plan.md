@@ -8,7 +8,7 @@ description: Investigate and align on an initiative, resolve uncertainties, then
 $ARGUMENTS
 ```
 
-You **MUST** treat `$ARGUMENTS` as the *initiative link* (or initiative slug/path) that identifies what to plan.
+You **MUST** treat user input as the *initiative link* (or initiative slug/path) that identifies what to plan.
 
 Example arguments:
 ```text

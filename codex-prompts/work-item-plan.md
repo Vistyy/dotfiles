@@ -8,7 +8,7 @@ description: Brainstorm a work item, resolve implementation uncertainties, then 
 $ARGUMENTS
 ```
 
-You **MUST** treat `$ARGUMENTS` as the *work item link* (or work-item path) that identifies what to plan.
+You **MUST** treat user input as the *work item link* (or work-item path) that identifies what to plan.
 
 Example argument:
 ```text

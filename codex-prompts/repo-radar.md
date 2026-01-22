@@ -8,7 +8,7 @@ description: Audit the current repository for high-leverage, large-scale improve
 $ARGUMENTS
 ```
 
-Treat `$ARGUMENTS` as optional context (free-form prose), not a directive language.
+You **MUST** treat user input as optional context (free-form prose), not a directive language.
 
 Helpful examples:
 - What you care about most (speed, test reliability, architecture boundaries, docs drift, developer ergonomics)

@@ -8,9 +8,9 @@ description: Brainstorm any topic, resolve uncertainties, then produce a concret
 $ARGUMENTS
 ```
 
-Treat `$ARGUMENTS` as the topic/request to plan.
+Treat user input as the topic/request to plan.
 
-If `$ARGUMENTS` looks like a readable file path in this repo, read it and treat it as a **provisional input** (a hypothesis / idea / guideline), not as source of truth.
+If user input looks like a readable file path in this repo, read it and treat it as a **provisional input** (a hypothesis / idea / guideline), not as source of truth.
 
 You MUST validate or refute it with repo evidence (code/docs reality) before you lock down material decisions. Otherwise treat `$ARGUMENTS` as plain text.
 

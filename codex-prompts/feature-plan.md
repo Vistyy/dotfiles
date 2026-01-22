@@ -8,7 +8,7 @@ description: Investigate and shape a feature, resolve uncertainties, slice into 
 $ARGUMENTS
 ```
 
-You **MUST** treat `$ARGUMENTS` as the *feature link* (or feature slug/path) that identifies what to plan.
+You **MUST** treat user input as the *feature link* (or feature slug/path) that identifies what to plan.
 
 Example arguments:
 ```text
