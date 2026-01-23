@@ -12,17 +12,20 @@ Before changing user-apps UI: read the UI/UX entrypoint and follow its guardrail
 ## When this applies
 
 Use this skill when you are making changes to **user-apps client UI**, including:
+
 - adding/modifying screens, layouts, components, or patterns
 - changing colors, typography, spacing, or visual styling
 - changing end-user visible copy/strings
 - changing empty/loading/error UX on end-user screens
 
 Excluded:
+
 - backend/API/auth contract work (Query API payloads/endpoints/semantics; server-side session behavior)
 
 ## Required input (read this first)
 
 You MUST read:
+
 - `docs-ai/docs/initiatives/user-apps/features/app-foundation/ui-ux-entrypoint.md`
 
 Do not proceed until you can restate the relevant guardrails for your change in one short paragraph.
@@ -32,10 +35,12 @@ Do not proceed until you can restate the relevant guardrails for your change in 
 ### 1) Do not invent styling (anti-drift)
 
 - Do **not** pick new colors, fonts, radii, spacing steps, or component variants ad hoc.
+- **Methodology**: Follow the **Atomic Design** principle (Atoms, Molecules, navigation) as documented in `apps/mobile/lib/core/widgets/README.md`.
 - Prefer using the existing component/pattern inventory and token semantics referenced by the entrypoint doc.
 - Avoid introducing “one-off” styling per screen or per component instance (that is how drift starts).
 
 If you believe a new token/component/pattern is required:
+
 - Stop and propose it explicitly (name + purpose + where it should live in docs).
 - Do not “just choose values” as a workaround.
 
@@ -63,6 +68,7 @@ Source of truth for the invariant list: `docs-ai/docs/initiatives/user-apps/feat
 Do not “fix” UX by inventing new styling or changing invariants ad hoc.
 
 Instead:
+
 - Stop and describe what is missing/contradictory in `docs-ai/docs/initiatives/user-apps/features/app-foundation/ui-ux-entrypoint.md`.
 - Point to the closest authoritative doc that should be linked (contract pack, tokens, components, art direction, or policy).
 - Propose the smallest update to the entrypoint doc (link-only, no long spec duplication), then wait for confirmation before proceeding with UI changes.
