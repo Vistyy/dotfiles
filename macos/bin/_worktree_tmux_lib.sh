@@ -186,14 +186,45 @@ open_wezterm_to_tmux_session() {
   local session="$1"
   local cwd="$2"
 
-  require_cmd wezterm
   require_cmd tmux
+  local out=""
 
-  # On macOS, launching WezTerm via `open` reliably brings the window to the
-  # foreground and makes it visible to window switchers (e.g., AltTab).
+  # Prefer LaunchServices so WezTerm behaves like a "normal" macOS app
+  # (window focus, app switchers, Dock, etc.).
   if command -v open >/dev/null 2>&1; then
-    open -a WezTerm --args start --cwd "$cwd" -- tmux new -A -s "$session" >/dev/null 2>&1 || true
-  else
-    (nohup wezterm start --cwd "$cwd" -- tmux new -A -s "$session" >/dev/null 2>&1 &)
+    # WezTerm's bundle id (from Info.plist) is typically:
+    #   com.github.wez.wezterm
+    # Using -b avoids relying on the display name being registered.
+    if out="$(open -na -b com.github.wez.wezterm --args start --always-new-process --cwd "$cwd" -- tmux new -A -s "$session" 2>&1)"; then
+      return 0
+    fi
+
+    if [[ -d /Applications/WezTerm.app ]]; then
+      if out="$(open -na /Applications/WezTerm.app --args start --always-new-process --cwd "$cwd" -- tmux new -A -s "$session" 2>&1)"; then
+        return 0
+      fi
+    fi
+
+    # Last "open" attempt: by app name.
+    if out="$(open -na WezTerm --args start --always-new-process --cwd "$cwd" -- tmux new -A -s "$session" 2>&1)"; then
+      return 0
+    fi
+
+    err "Warning: failed to launch WezTerm via 'open'; tmux session '$session' is ready."
+    [[ -n "$out" ]] && err "$out"
   fi
+
+  # Fallback: run the GUI binary directly (still behaves like an app, but skips LaunchServices).
+  if [[ -x /Applications/WezTerm.app/Contents/MacOS/wezterm-gui ]]; then
+    (nohup /Applications/WezTerm.app/Contents/MacOS/wezterm-gui start --always-new-process --cwd "$cwd" -- tmux new -A -s "$session" >/dev/null 2>&1 &)
+    return 0
+  fi
+
+  # Absolute last resort: CLI on PATH.
+  if command -v wezterm >/dev/null 2>&1; then
+    (nohup wezterm start --always-new-process --cwd "$cwd" -- tmux new -A -s "$session" >/dev/null 2>&1 &)
+    return 0
+  fi
+
+  err "Tip: run 'dev-tabs -T' to attach in this terminal, or 'dev-tabs -n' to skip WezTerm."
 }
