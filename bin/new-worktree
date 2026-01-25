@@ -36,7 +36,7 @@ usage() {
     echo "                       (default: $REPO_ROOT/.worktree.copylist if present,"
     echo "                                 else $SCRIPT_COPY_MANIFEST)"
     echo "  --code, -C            Also open VS Code for the new worktree (opt-in)"
-    echo "  --no-setup            Do not run setup (uv sync && just q)"
+    echo "  --no-setup            Do not run setup (uv sync && just web install && just q)"
     echo "  --pick-code, -c       Select an existing worktree (fzf if available) and open VS Code"
     echo "  --help, -h            Show this help"
 }
@@ -129,12 +129,12 @@ run_setup_best_effort() {
 
     if command -v wt.exe >/dev/null 2>&1 && command -v wsl.exe >/dev/null 2>&1 && command -v wslpath >/dev/null 2>&1; then
         echo ""
-        echo "==> Running setup in new terminal tab (uv sync && just q)"
+        echo "==> Running setup in new terminal tab (uv sync && just web install && just q)"
         local win_path
         win_path="$(wslpath -w "$worktree_path")"
         local distro="${WSL_DISTRO_NAME:-Ubuntu}"
 
-        if wt.exe -w 0 new-tab -d "$win_path" --title "$title" wsl.exe -d "$distro" -- bash -lc "cd '$worktree_path' && uv sync && just q"; then
+        if wt.exe -w 0 new-tab -d "$win_path" --title "$title" wsl.exe -d "$distro" -- bash -lc "cd '$worktree_path' && uv sync && just web install && just q"; then
             echo "    Setup launched in new terminal tab"
             return 0
         fi
@@ -142,13 +142,13 @@ run_setup_best_effort() {
         echo "    Failed to launch new terminal tab; running setup inline" >&2
     else
         echo ""
-        echo "==> Running setup (uv sync && just q)"
+        echo "==> Running setup (uv sync && just web install && just q)"
     fi
 
     (
         set +e
         cd "$worktree_path" || exit 0
-        uv sync && just q
+        uv sync && just web install && just q
         rc=$?
         if (( rc != 0 )); then
             echo "    Setup failed (exit $rc)" >&2
