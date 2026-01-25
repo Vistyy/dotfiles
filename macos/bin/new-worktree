@@ -39,7 +39,7 @@ Options:
                     (default: $REPO_ROOT/.worktree.copylist if present,
                               else $script_copy_manifest)
   -C, --code          Also open VS Code for the new worktree (opt-in)
-  --no-setup          Do not run setup (uv sync && just q)
+  --no-setup          Do not run setup (uv sync && just web install && just q)
   -c, --pick-code     Select an existing worktree (fzf if available) and open VS Code
   -h, --help          Show help
 USAGE
@@ -122,15 +122,29 @@ run_setup_best_effort() {
   local worktree_path="$1"
 
   say ""
-  say "==> Running setup (uv sync && just q)"
+  say "==> Running setup (uv sync && just web install && just q)"
 
   (
     set +e
     cd "$worktree_path" || exit 0
-    uv sync && just q
+
+    uv sync
     rc=$?
     if (( rc != 0 )); then
-      err "    Setup failed (exit $rc)"
+      err "    Setup failed (uv sync, exit $rc)"
+      exit 0
+    fi
+
+    just web install
+    rc=$?
+    if (( rc != 0 )); then
+      err "    Setup warning (just web install failed, exit $rc); continuing"
+    fi
+
+    just q
+    rc=$?
+    if (( rc != 0 )); then
+      err "    Setup failed (just q, exit $rc)"
     fi
     exit 0
   )
