@@ -9,18 +9,13 @@ Personal dotfiles and scripts.
   - `new-worktree` - Create git worktree with tmux session
   - `rm-worktree` - Remove git worktree and cleanup
 
-- **codex-prompts/** - AI assistant prompts for code review and quality
-- **codex-skills/** - Codex personal skills (installed into `~/.codex/skills`)
-
 ## Install
 
 ```bash
 ./install.sh
 ```
 
-Creates symlinks in `~/.local/bin` and `~/.codex/prompts`.
-
-Also creates symlinks in `~/.codex/skills`.
+Creates symlinks in `~/.local/bin`.
 
 ## macOS terminal setup
 
