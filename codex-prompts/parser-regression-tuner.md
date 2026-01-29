@@ -51,7 +51,7 @@ The suite runs the parser against deterministic inputs and asserts strict equali
 1) Reproduce the failure narrowly (source of truth for what mismatched):
 
 ```bash
-just test tests/integration/parser_regression/test_parser_regression_suite_v2.py -k <case_name>
+just python test tests/integration/parser_regression/test_parser_regression_suite_v2.py -k <case_name>
 ```
 
 2) Read the expected values:
@@ -70,13 +70,13 @@ uv run python scripts/debug_parser.py tests/data/parser_regression/<case_name>.c
 
 5) Apply the smallest viable change, then re-run:
 - `uv run python scripts/debug_parser.py ...` (diagnostics)
-- `just test ... -k <case_name>` (strict assertion)
+- `just python test ... -k <case_name>` (strict assertion)
 
 6) When satisfied, run the suite + quality gate:
 
 ```bash
-just test tests/integration/parser_regression/test_parser_regression_suite_v2.py
-just quality
+just python test tests/integration/parser_regression/test_parser_regression_suite_v2.py
+just python quality
 ```
 
 ## Selection Layer Overview
