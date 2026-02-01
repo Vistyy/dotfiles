@@ -134,7 +134,11 @@ run_setup_best_effort() {
         win_path="$(wslpath -w "$worktree_path")"
         local distro="${WSL_DISTRO_NAME:-Ubuntu}"
 
-        if wt.exe -w 0 new-tab -d "$win_path" --title "$title" wsl.exe -d "$distro" -- bash -lc "cd '$worktree_path' && just init && just q"; then
+        # `bash -lc` is non-interactive, so it won't read `.bashrc`. Many setups
+        # (including Bun installers) add PATH updates there, which can make tools
+        # "disappear" when launched this way. Use an interactive login shell so
+        # the user's normal PATH is loaded without hardcoding any tool paths.
+        if wt.exe -w 0 new-tab -d "$win_path" --title "$title" wsl.exe -d "$distro" -- bash -ilc "cd '$worktree_path' && just init && just q"; then
             echo "    Setup launched in new terminal tab"
             return 0
         fi
