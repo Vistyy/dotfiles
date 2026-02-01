@@ -293,44 +293,27 @@ if [[ "$this_terminal" == "true" ]]; then
 fi
 
 require_cmd wslpath
-
-# If you disable Windows PATH injection in WSL (e.g. /etc/wsl.conf
-# appendWindowsPath=false), these won't be discoverable via PATH. Allow explicit
-# overrides so you can keep Windows PATH out of WSL while still launching
-# Windows Terminal.
-WT_CMD="${WT_EXE:-wt.exe}"
-WSL_CMD="${WSL_EXE:-wsl.exe}"
-
-if [[ -n "${WT_EXE:-}" ]]; then
-  [[ -f "$WT_CMD" ]] || die "WT_EXE points to missing file: $WT_CMD"
-else
-  require_cmd "$WT_CMD"
-fi
-
-if [[ -n "${WSL_EXE:-}" ]]; then
-  [[ -f "$WSL_CMD" ]] || die "WSL_EXE points to missing file: $WSL_CMD"
-else
-  require_cmd "$WSL_CMD"
-fi
+require_cmd wt.exe
+require_cmd wsl.exe
 
 # Convert WSL path to Windows path for wt.exe
 WIN_PATH="$(wslpath -w "$anchor_dir")"
 
-codex_cmd=("$WSL_CMD" -d Ubuntu -- bash -ic "cd '$anchor_dir' && (codex -p codex || true) && exec bash")
-standard_cmd=("$WSL_CMD" -d Ubuntu -- bash -ic "cd '$anchor_dir' && (codex -p standard || true) && exec bash")
+codex_cmd=(wsl.exe -d Ubuntu -- bash -ic "cd '$anchor_dir' && (codex -p codex || true) && exec bash")
+standard_cmd=(wsl.exe -d Ubuntu -- bash -ic "cd '$anchor_dir' && (codex -p standard || true) && exec bash")
 
 wt_split() {
   # Note: split-pane only starts a command in the *new* pane; the current pane
   # is left untouched. With --mode both this will create two new panes.
   case "$mode" in
     codex)
-      "$WT_CMD" -w 0 split-pane -V -p "Ubuntu" -d "$WIN_PATH" --title "Codex" --tabColor "#FFA500" "${codex_cmd[@]}"
+      wt.exe -w 0 split-pane -V -p "Ubuntu" -d "$WIN_PATH" --title "Codex" --tabColor "#FFA500" "${codex_cmd[@]}"
       ;;
     standard)
-      "$WT_CMD" -w 0 split-pane -V -p "Ubuntu" -d "$WIN_PATH" --title "Standard" --tabColor "#FFA500" "${standard_cmd[@]}"
+      wt.exe -w 0 split-pane -V -p "Ubuntu" -d "$WIN_PATH" --title "Standard" --tabColor "#FFA500" "${standard_cmd[@]}"
       ;;
     both)
-      "$WT_CMD" -w 0 \
+      wt.exe -w 0 \
         split-pane -V -p "Ubuntu" -d "$WIN_PATH" --title "Codex" --tabColor "#FFA500" "${codex_cmd[@]}" \; \
         split-pane -H -p "Ubuntu" -d "$WIN_PATH" --title "Standard" --tabColor "#FFA500" "${standard_cmd[@]}"
       ;;
@@ -345,13 +328,13 @@ fi
 
 case "$mode" in
   codex)
-    "$WT_CMD" -w 0 new-tab -p "Ubuntu" -d "$WIN_PATH" --title "Codex" --tabColor "#FFA500" "${codex_cmd[@]}"
+    wt.exe -w 0 new-tab -p "Ubuntu" -d "$WIN_PATH" --title "Codex" --tabColor "#FFA500" "${codex_cmd[@]}"
     ;;
   standard)
-    "$WT_CMD" -w 0 new-tab -p "Ubuntu" -d "$WIN_PATH" --title "Standard" --tabColor "#FFA500" "${standard_cmd[@]}"
+    wt.exe -w 0 new-tab -p "Ubuntu" -d "$WIN_PATH" --title "Standard" --tabColor "#FFA500" "${standard_cmd[@]}"
     ;;
   both)
-    "$WT_CMD" -w 0 \
+    wt.exe -w 0 \
       new-tab -p "Ubuntu" -d "$WIN_PATH" --title "Codex" --tabColor "#FFA500" "${codex_cmd[@]}" \; \
       split-pane -V -p "Ubuntu" -d "$WIN_PATH" --title "Standard" --tabColor "#FFA500" "${standard_cmd[@]}"
     ;;
