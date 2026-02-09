@@ -166,13 +166,13 @@ ensure_tmux_layout() {
     fi
 
     if [[ "$mode" == "codex" || "$mode" == "both" ]]; then
-      tmux send-keys -t "$pane1" "cd \"$cwd\" && (codex -p codex || true) && exec \"$shell\" -l" C-m
+      tmux send-keys -t "$pane1" "cd \"$cwd\" && (swop codex -- -p codex || true) && exec \"$shell\" -l" C-m
     else
-      tmux send-keys -t "$pane1" "cd \"$cwd\" && (codex -p standard || true) && exec \"$shell\" -l" C-m
+      tmux send-keys -t "$pane1" "cd \"$cwd\" && (swop codex -- -p standard || true) && exec \"$shell\" -l" C-m
     fi
 
     if [[ "$mode" == "both" ]]; then
-      tmux send-keys -t "$pane2" "cd \"$cwd\" && (codex -p standard || true) && exec \"$shell\" -l" C-m
+      tmux send-keys -t "$pane2" "cd \"$cwd\" && (swop codex -- -p standard || true) && exec \"$shell\" -l" C-m
     fi
 
     if [[ "$create_setup_window" == "true" ]]; then

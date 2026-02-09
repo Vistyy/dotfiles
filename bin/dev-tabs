@@ -10,6 +10,7 @@ set -euo pipefail
 #
 # Options:
 #   -w, --worktree Select a git worktree interactively (requires git repo)
+#   -W, --worktree-only Select a git worktree and open an interactive shell there
 #   -m, --mode     Which panes to open: both|codex|standard
 #   -c, -t, -b     Shortcuts for --mode codex|standard|both
 #   -R, -N         Shortcuts for --reuse-tab / --new-tab
@@ -33,6 +34,7 @@ use_here=false
 status=false
 dir_provided=false
 worktree_pick=false
+worktree_only=false
 mode="both"
 reuse_tab="auto" # auto|true|false
 this_terminal=false
@@ -50,6 +52,7 @@ You can group short flags (that take no value), e.g. `-Ttw`.
 
 Options:
   -w, --worktree  Select a git worktree interactively (requires git repo)
+  -W, --worktree-only Select a git worktree and open an interactive shell there
   -m, --mode MODE Open panes for MODE: both|codex|standard (default: both)
   -c              Shortcut for --mode codex
   -t              Shortcut for --mode standard
@@ -183,6 +186,7 @@ while [[ $# -gt 0 ]]; do
 
   case "$1" in
     -w|--worktree) worktree_pick=true; shift ;;
+    -W|--worktree-only) worktree_pick=true; worktree_only=true; shift ;;
     -m|--mode) mode="${2:-}"; shift 2 ;;
     -c) mode="codex"; shift ;;
     -t) mode="standard"; shift ;;
@@ -223,6 +227,21 @@ esac
 if [[ "$worktree_pick" == "true" ]]; then
   target_dir="$(select_worktree_dir "$target_dir")"
   target_dir="$(realpath_of "$target_dir")"
+fi
+
+if [[ "$worktree_only" == "true" ]]; then
+  if [[ ! -t 0 || ! -t 1 ]]; then
+    die "--worktree-only requires a TTY"
+  fi
+
+  interactive_shell="${SHELL:-}"
+  if [[ -z "${interactive_shell:-}" || ! -x "$interactive_shell" ]]; then
+    interactive_shell="$(command -v bash)"
+  fi
+
+  cd "$target_dir"
+  exec "$interactive_shell" -i
+  exit 0
 fi
 
 anchor_dir="$(realpath_of "$(anchor_dir_for "$target_dir")")"
@@ -288,7 +307,7 @@ if [[ "$this_terminal" == "true" ]]; then
   fi
 
   profile="$mode"
-  bash -lc 'cd "$1" && (codex -p "$2" || true); exec "$3"' bash "$anchor_dir" "$profile" "$interactive_shell"
+  bash -lc 'cd "$1" && (swop codex -- -p "$2" || true); exec "$3"' bash "$anchor_dir" "$profile" "$interactive_shell"
   exit 0
 fi
 
@@ -299,8 +318,8 @@ require_cmd wsl.exe
 # Convert WSL path to Windows path for wt.exe
 WIN_PATH="$(wslpath -w "$anchor_dir")"
 
-codex_cmd=(wsl.exe -d Ubuntu -- bash -ic "cd '$anchor_dir' && (codex -p codex || true) && exec bash")
-standard_cmd=(wsl.exe -d Ubuntu -- bash -ic "cd '$anchor_dir' && (codex -p standard || true) && exec bash")
+codex_cmd=(wsl.exe -d Ubuntu -- bash -ic "cd '$anchor_dir' && (swop codex -- -p codex || true) && exec bash")
+standard_cmd=(wsl.exe -d Ubuntu -- bash -ic "cd '$anchor_dir' && (swop codex -- -p standard || true) && exec bash")
 
 wt_split() {
   # Note: split-pane only starts a command in the *new* pane; the current pane

@@ -22,6 +22,7 @@ kill_ids=""
 status=false
 clean_sessions=false
 worktree_pick=false
+worktree_only=false
 mode="both"
 attach_here=false
 
@@ -39,6 +40,7 @@ You can group short flags (that take no value), e.g. `-Ttw`.
 
 Options:
   -w, --worktree       Select a git worktree interactively (requires git repo)
+  -W, --worktree-only  Select a git worktree and open an interactive shell there
   -m, --mode MODE      Open panes for MODE: both|codex|standard (default: both)
   -c                  Shortcut for --mode codex
   -t                  Shortcut for --mode standard
@@ -355,6 +357,7 @@ while [[ $# -gt 0 ]]; do
 
   case "$1" in
     -w|--worktree) worktree_pick=true; shift ;;
+    -W|--worktree-only) worktree_pick=true; worktree_only=true; shift ;;
     -m|--mode) mode="${2:-}"; shift 2 ;;
     -c) mode="codex"; shift ;;
     -t) mode="standard"; shift ;;
@@ -420,6 +423,21 @@ esac
 if [[ "$worktree_pick" == "true" ]]; then
   target_dir="$(select_worktree_dir "$target_dir")"
   target_dir="$(realpath_of "$target_dir")"
+fi
+
+if [[ "$worktree_only" == "true" ]]; then
+  if [[ ! -t 0 || ! -t 1 ]]; then
+    die "--worktree-only requires a TTY"
+  fi
+
+  interactive_shell="${SHELL:-}"
+  if [[ -z "${interactive_shell:-}" || ! -x "$interactive_shell" ]]; then
+    interactive_shell="$(command -v bash)"
+  fi
+
+  cd "$target_dir"
+  exec "$interactive_shell" -i
+  exit 0
 fi
 
 anchor_dir="$(realpath_of "$(anchor_dir_for "$target_dir")")"
