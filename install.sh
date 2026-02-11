@@ -35,4 +35,13 @@ if [[ "$OS" == "Darwin" && -d "$DOTFILES_DIR/macos/bin" ]]; then
   done
 fi
 
+notify_script="$DOTFILES_DIR/bin/notify-codex.sh"
+if [ -f "$notify_script" ]; then
+  mkdir -p "$HOME/.codex"
+  notify_target="$HOME/.codex/notify-codex.sh"
+  if ! { [ -e "$notify_target" ] && [ "$notify_script" -ef "$notify_target" ]; }; then
+    ln -sf "$notify_script" "$notify_target"
+  fi
+fi
+
 echo "Dotfiles installed"
