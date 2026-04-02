@@ -7,8 +7,8 @@ print(os.path.realpath(sys.argv[1]))
 PY
 )"
 script_dir="$(cd "$(dirname "$script_path")" && pwd)"
-# shellcheck source=macos/bin/_worktree_tmux_lib.sh
-source "$script_dir/_worktree_tmux_lib.sh"
+# shellcheck source=macos/bin/_worktree_lib.sh
+source "$script_dir/_worktree_lib.sh"
 
 script_copy_manifest="$script_dir/new-worktree.copylist"
 copy_manifest_override=""

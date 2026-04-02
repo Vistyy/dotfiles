@@ -1,64 +1,52 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-script_path="$(python3 - <<'PY' "${BASH_SOURCE[0]}"
-import os, sys
-print(os.path.realpath(sys.argv[1]))
-PY
-)"
-script_dir="$(cd "$(dirname "$script_path")" && pwd)"
-# shellcheck source=macos/bin/_worktree_tmux_lib.sh
-source "$script_dir/_worktree_tmux_lib.sh"
+DEFAULT_DIR="$HOME/projects/budgeat"
 
 target_dir=""
-open_wezterm=true
-run_setup=false
 use_here=false
-fresh_session=false
-list_sessions=false
-prune_sessions=false
-kill_session=false
-kill_ids=""
 status=false
-clean_sessions=false
 worktree_pick=false
 worktree_only=false
 mode="both"
-attach_here=false
+reuse_tab="auto" # auto|true|false
+this_terminal=false
+open_terminal=true
 
 usage() {
   cat <<'USAGE'
 Usage: dev-tabs [DIR] [OPTIONS]
 
-Creates/repairs the standard tmux layout and opens a new WezTerm window
-attached to that tmux session.
+Opens a native WezTerm dev layout for the target directory.
 
 By default, if DIR is inside a git repo, this anchors to the repo root. Use
 --here to anchor to the exact DIR instead.
 
-You can group short flags (that take no value), e.g. `-Ttw`.
+You can group short flags (that take no value), e.g. `-TRw`.
 
 Options:
   -w, --worktree       Select a git worktree interactively (requires git repo)
   -W, --worktree-only  Select a git worktree and open an interactive shell there
   -m, --mode MODE      Open panes for MODE: both|codex|standard (default: both)
-  -c                  Shortcut for --mode codex
-  -t                  Shortcut for --mode standard
-  -b                  Shortcut for --mode both
-  -T, --this-terminal  Attach to tmux in this terminal (no WezTerm)
-  -N, --new-tab       No-op on macOS (compat with WSL dev-tabs)
-  -n, --no-wezterm    Do not open WezTerm
-  -s, --setup         Also create a setup window (uv sync && just q)
-  -H, --here          Anchor session to DIR (not git repo root)
-  -f, --fresh         Kill existing session and recreate it
-  -k, --kill          Kill the session for DIR and exit
-  -l, --list          List managed tmux sessions created by these scripts
-  -p, --prune         Kill managed sessions whose CODEX_ROOT no longer exists
-  -K, --kill-ids IDS  Kill managed sessions by id(s) from --list (e.g. 1,3,5 or all)
-  -S, --status        Print computed session details for DIR and exit
-  -C, --clean         Interactive cleanup of managed sessions
-  -h, --help          Show help
+  -c                   Shortcut for --mode codex
+  -t                   Shortcut for --mode standard
+  -b                   Shortcut for --mode both
+  -T, --this-terminal  Reuse this terminal instead of opening WezTerm
+  -R, --reuse-tab      Reuse the current WezTerm tab when possible
+  -N, --new-tab        Always open a fresh WezTerm tab/window
+  -H, --here           Anchor to DIR (not git repo root)
+  -S, --status         Print computed target details and exit
+  -h, --help           Show help
 USAGE
+}
+
+die() {
+  printf "Error: %s\n" "$*" >&2
+  exit 1
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
 }
 
 prompt_read() {
@@ -69,169 +57,6 @@ prompt_read() {
   else
     read -r -p "$prompt" "$var_name" || return 1
   fi
-}
-
-tmux_getenv() {
-  local session="$1"
-  local key="$2"
-  tmux show-environment -t "$session" "$key" 2>/dev/null | sed -n "s/^${key}=//p"
-}
-
-is_managed_session() {
-  local session="$1"
-  [[ "$(tmux_getenv "$session" "CODEX_MANAGED")" == "1" ]]
-}
-
-managed_sessions() {
-  require_cmd tmux
-  tmux list-sessions -F '#{session_name}' 2>/dev/null \
-    | while IFS= read -r s; do
-        [[ -n "$s" ]] || continue
-        if is_managed_session "$s"; then
-          printf "%s\n" "$s"
-        fi
-      done \
-    | LC_ALL=C sort
-}
-
-list_managed_sessions() {
-  require_cmd tmux
-  local sessions
-  sessions="$(managed_sessions || true)"
-  if [[ -z "${sessions:-}" ]]; then
-    say "No tmux sessions."
-    return 0
-  fi
-
-  say "Managed tmux sessions:"
-  local i=1
-  while IFS= read -r s; do
-    [[ -n "$s" ]] || continue
-    root="$(tmux_getenv "$s" "CODEX_ROOT")"
-    attached="$(tmux list-sessions -F '#{session_name} #{session_attached}' 2>/dev/null | awk -v n="$s" '$1==n{print $2}' || true)"
-    [[ -n "$attached" ]] || attached="?"
-    say "  $i) $s (attached=$attached) root=${root:-?}"
-    i=$((i + 1))
-  done <<< "$sessions"
-}
-
-prune_managed_sessions() {
-  require_cmd tmux
-  local sessions
-  sessions="$(managed_sessions || true)"
-  [[ -n "${sessions:-}" ]] || { say "No managed sessions."; return 0; }
-
-  local killed=0
-  while IFS= read -r s; do
-    [[ -n "$s" ]] || continue
-    root="$(tmux_getenv "$s" "CODEX_ROOT")"
-    if [[ -z "$root" || ! -d "$root" ]]; then
-      say "==> Pruning tmux session: $s (root=${root:-missing})"
-      tmux kill-session -t "$s" 2>/dev/null || true
-      killed=$((killed + 1))
-    fi
-  done <<< "$sessions"
-
-  if [[ "$killed" -eq 0 ]]; then
-    say "No managed sessions to prune."
-  fi
-}
-
-confirm_kill_all() {
-  if [[ ! -r /dev/tty ]]; then
-    die "Refusing to kill all sessions without a TTY (run interactively)"
-  fi
-  echo ""
-  say "About to kill ALL managed tmux sessions created by these scripts."
-  say "Type 'all' to confirm."
-  local confirm
-  prompt_read "> " confirm || die "Confirmation failed"
-  [[ "$confirm" == "all" ]] || die "Confirmation failed"
-}
-
-kill_managed_sessions_by_ids() {
-  local ids_raw="$1"
-  require_cmd tmux
-
-  local sessions
-  sessions="$(managed_sessions || true)"
-  [[ -n "${sessions:-}" ]] || { say "No managed sessions."; return 0; }
-
-  local ids
-  ids="$(printf "%s" "$ids_raw" | tr ',' ' ')"
-  [[ -n "$ids" ]] || die "Provide id(s) (e.g. 1,3,5) or all"
-
-  if [[ "$ids" == "all" ]]; then
-    confirm_kill_all
-    while IFS= read -r s; do
-      [[ -n "$s" ]] || continue
-      say "==> Killing tmux session: $s"
-      tmux kill-session -t "$s" 2>/dev/null || true
-    done <<< "$sessions"
-    return 0
-  fi
-
-  local max
-  max="$(printf "%s\n" "$sessions" | wc -l | tr -d ' ')"
-
-  local kill_count=0
-  for id in $ids; do
-    if ! [[ "$id" =~ ^[0-9]+$ ]]; then
-      err "Skipping invalid id: $id"
-      continue
-    fi
-    if (( id < 1 || id > max )); then
-      err "Skipping out-of-range id: $id (valid: 1..$max)"
-      continue
-    fi
-    session_to_kill="$(printf "%s\n" "$sessions" | sed -n "${id}p")"
-    if [[ -n "$session_to_kill" ]]; then
-      say "==> Killing tmux session: $session_to_kill"
-      tmux kill-session -t "$session_to_kill" 2>/dev/null || true
-      kill_count=$((kill_count + 1))
-    fi
-  done
-
-  if [[ "$kill_count" -eq 0 ]]; then
-    say "No sessions killed."
-  fi
-}
-
-clean_managed_sessions() {
-  require_cmd tmux
-  local sessions
-  sessions="$(managed_sessions || true)"
-  [[ -n "${sessions:-}" ]] || { say "No managed sessions."; return 0; }
-
-  if command -v fzf >/dev/null 2>&1; then
-    local picked_ids
-    picked_ids="$(
-      {
-        local i=1
-        while IFS= read -r s; do
-          [[ -n "$s" ]] || continue
-          root="$(tmux_getenv "$s" "CODEX_ROOT")"
-          printf "%d) %s  root=%s\n" "$i" "$s" "${root:-?}"
-          i=$((i + 1))
-        done <<< "$sessions"
-      } | fzf --multi --prompt="Kill sessions> " | sed -n 's/^\([0-9][0-9]*\)).*/\1/p' | paste -sd, -
-    )"
-
-    if [[ -z "${picked_ids:-}" ]]; then
-      say "No selection."
-      return 0
-    fi
-    kill_managed_sessions_by_ids "$picked_ids"
-    return 0
-  fi
-
-  list_managed_sessions
-  echo ""
-  say "Enter ids to kill (e.g. 1,3,5), 'all', or empty to cancel:"
-  local ids
-  prompt_read "> " ids || return 1
-  [[ -n "$ids" ]] || { say "Canceled."; return 0; }
-  kill_managed_sessions_by_ids "$ids"
 }
 
 realpath_of() {
@@ -273,7 +98,7 @@ select_worktree_dir() {
   [[ -n "${paths:-}" ]] || die "No git worktrees found (DIR=$dir)"
 
   local i=1
-  say "Worktrees:"
+  printf "Worktrees:\n" >&2
   while IFS= read -r p; do
     [[ -n "$p" ]] || continue
     local b
@@ -283,7 +108,7 @@ select_worktree_dir() {
       $1=="detached" && p==want {print "(detached)"; exit}
     ')"
     [[ -n "${b:-}" ]] || b="(unknown)"
-    say "  $i) $p  $b"
+    printf "  %d) %s  %s\n" "$i" "$p" "$b" >&2
     i=$((i + 1))
   done <<< "$paths"
 
@@ -307,42 +132,116 @@ anchor_dir_for() {
   printf "%s" "$dir"
 }
 
-short_hash() {
-  python3 - <<'PY' "$1"
-import hashlib, sys
-print(hashlib.sha1(sys.argv[1].encode("utf-8")).hexdigest()[:7])
-PY
+inside_wezterm() {
+  [[ -n "${WEZTERM_PANE:-}" || "${TERM_PROGRAM:-}" == "WezTerm" ]]
 }
 
-repo_name_for_git_dir() {
+build_profile_command() {
+  local profile="$1"
+  local dir="$2"
+  local shell_path="$3"
+  local qdir qprofile qshell
+  printf -v qdir '%q' "$dir"
+  printf -v qprofile '%q' "$profile"
+  printf -v qshell '%q' "$shell_path"
+  printf 'cd %s && (swop codex -- -p %s || true) && exec %s -l' "$qdir" "$qprofile" "$qshell"
+}
+
+repo_label_for() {
   local dir="$1"
-  local url
-  url="$(git -C "$dir" remote get-url origin 2>/dev/null || true)"
-  if [[ -n "$url" ]]; then
-    local base="${url##*/}"
-    base="${base##*:}"
-    base="${base%.git}"
-    printf "%s" "$base"
+  if git -C "$dir" rev-parse --show-toplevel >/dev/null 2>&1; then
+    basename "$(git -C "$dir" rev-parse --show-toplevel)"
     return 0
   fi
-  printf "%s" "$(basename "$(git -C "$dir" rev-parse --show-toplevel)")"
+  basename "$dir"
+}
+
+spawn_new_container() {
+  local profile="$1"
+  local dir="$2"
+  local shell_path="$3"
+  local reuse_existing_window="$4"
+  local cmd pane_id
+  cmd="$(build_profile_command "$profile" "$dir" "$shell_path")"
+
+  if [[ "$reuse_existing_window" == "true" && -n "${WEZTERM_PANE:-}" ]]; then
+    pane_id="$(
+      wezterm cli spawn \
+        --cwd "$dir" \
+        -- "$shell_path" -lc "$cmd"
+    )"
+  else
+    pane_id="$(
+      wezterm cli spawn \
+        --new-window \
+        --cwd "$dir" \
+        -- "$shell_path" -lc "$cmd"
+    )"
+  fi
+
+  printf "%s" "$pane_id"
+}
+
+split_from_pane() {
+  local pane_id="$1"
+  local direction="$2"
+  local profile="$3"
+  local dir="$4"
+  local shell_path="$5"
+  local cmd
+  cmd="$(build_profile_command "$profile" "$dir" "$shell_path")"
+
+  case "$direction" in
+    right)
+      wezterm cli split-pane \
+        --pane-id "$pane_id" \
+        --right \
+        --percent 50 \
+        --cwd "$dir" \
+        -- "$shell_path" -lc "$cmd" >/dev/null
+      ;;
+    bottom)
+      wezterm cli split-pane \
+        --pane-id "$pane_id" \
+        --bottom \
+        --percent 50 \
+        --cwd "$dir" \
+        -- "$shell_path" -lc "$cmd" >/dev/null
+      ;;
+    *)
+      die "Unsupported split direction: $direction"
+      ;;
+  esac
+}
+
+reuse_current_pane() {
+  local pane_id="$1"
+  local profile="$2"
+  local dir="$3"
+  local shell_path="$4"
+  local cmd
+  cmd="$(build_profile_command "$profile" "$dir" "$shell_path")"
+  wezterm cli send-text --pane-id "$pane_id" --no-paste "$cmd"$'\n' >/dev/null
+}
+
+set_tab_title() {
+  local pane_id="$1"
+  local title="$2"
+  wezterm cli set-tab-title --pane-id "$pane_id" "$title" >/dev/null 2>&1 || true
 }
 
 while [[ $# -gt 0 ]]; do
-  # Support grouping short flags, e.g. `-Ttw` -> `-T -t -w`.
-  # Options that take a value (e.g. `-m`, `-K`) follow getopts-style behavior:
-  # -KVALUE uses VALUE; -K VALUE uses next argv.
   if [[ "$1" =~ ^-[^-]{2,}$ ]]; then
     short_cluster="${1#-}"
     expanded=()
     for ((i=0; i<${#short_cluster}; i++)); do
       ch="${short_cluster:i:1}"
       case "$ch" in
-        m|K)
+        m)
           if (( i + 1 < ${#short_cluster} )); then
-            expanded+=("-$ch" "${short_cluster:i+1}")
+            expanded+=("-m" "${short_cluster:i+1}")
           else
-            expanded+=("-$ch")
+            expanded+=("-m")
           fi
           break
           ;;
@@ -362,18 +261,11 @@ while [[ $# -gt 0 ]]; do
     -c) mode="codex"; shift ;;
     -t) mode="standard"; shift ;;
     -b) mode="both"; shift ;;
-    -T|--this-terminal) attach_here=true; open_wezterm=false; shift ;;
-    -N|--new-tab) shift ;; # compat no-op
-    -n|--no-wezterm) open_wezterm=false; shift ;;
-    -s|--setup) run_setup=true; shift ;;
+    -T|--this-terminal) this_terminal=true; open_terminal=false; shift ;;
+    -R|--reuse-tab|--reuse-window) reuse_tab="true"; shift ;;
+    -N|--new-tab) reuse_tab="false"; shift ;;
     -H|--here) use_here=true; shift ;;
-    -f|--fresh) fresh_session=true; shift ;;
-    -k|--kill) kill_session=true; shift ;;
-    -l|--list) list_sessions=true; shift ;;
-    -p|--prune) prune_sessions=true; shift ;;
-    -K|--kill-ids) kill_ids="${2:-}"; shift 2 ;;
     -S|--status) status=true; shift ;;
-    -C|--clean) clean_sessions=true; shift ;;
     -h|--help) usage; exit 0 ;;
     --) shift; break ;;
     *)
@@ -386,32 +278,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-require_cmd git
-require_cmd tmux
-
-if [[ "$list_sessions" == "true" ]]; then
-  list_managed_sessions
-  exit 0
-fi
-
-if [[ "$prune_sessions" == "true" ]]; then
-  prune_managed_sessions
-  exit 0
-fi
-
-if [[ -n "$kill_ids" ]]; then
-  kill_managed_sessions_by_ids "$kill_ids"
-  exit 0
-fi
-
-if [[ "$clean_sessions" == "true" ]]; then
-  clean_managed_sessions
-  exit 0
-fi
-
 if [[ -z "$target_dir" ]]; then
   target_dir="$PWD"
 fi
+
+require_cmd git
+require_cmd python3
 
 target_dir="$(realpath_of "$target_dir")"
 
@@ -442,104 +314,94 @@ fi
 
 anchor_dir="$(realpath_of "$(anchor_dir_for "$target_dir")")"
 
-repo_name="$(basename "$anchor_dir")"
+if [[ ! -d "$anchor_dir" ]]; then
+  die "Directory does not exist: $anchor_dir"
+fi
 
-in_git_repo=false
+if [[ "$mode" == "both" && "$this_terminal" == "true" ]]; then
+  die "--this-terminal requires --mode codex|standard (can't open both in one terminal)"
+fi
+
 if git -C "$anchor_dir" rev-parse --show-toplevel >/dev/null 2>&1; then
-  in_git_repo=true
-  repo_name="$(repo_name_for_git_dir "$anchor_dir")"
-fi
-
-branch=""
-if [[ "$in_git_repo" == "true" ]]; then
-  branch="$(git -C "$anchor_dir" symbolic-ref -q --short HEAD || true)"
-  if [[ -z "$branch" ]] && git -C "$anchor_dir" rev-parse --verify HEAD >/dev/null 2>&1; then
-    sha="$(git -C "$anchor_dir" rev-parse --short HEAD)"
-    branch="detached-$sha"
-  fi
-fi
-
-if [[ "$in_git_repo" != "true" ]]; then
-  session="${repo_name}__here__$(short_hash "$anchor_dir")"
-elif [[ "$use_here" == "true" ]]; then
-  session="${repo_name}__here__$(short_hash "$anchor_dir")"
+  :
 else
-  [[ -n "$branch" ]] || die "Not on a branch in $anchor_dir (detached HEAD?)"
-  session="${repo_name}__$(branch_to_dir_name "$branch")"
-
-  if tmux has-session -t "$session" 2>/dev/null; then
-    existing_root="$(tmux show-environment -t "$session" CODEX_ROOT 2>/dev/null | sed -n 's/^CODEX_ROOT=//p')"
-    if [[ -z "$existing_root" ]]; then
-      existing_pane_path="$(tmux display-message -p -t "${session}:0.0" '#{pane_current_path}' 2>/dev/null || true)"
-      if [[ -n "$existing_pane_path" ]]; then
-        existing_pane_path="$(realpath_of "$existing_pane_path")"
-      fi
-
-      if [[ -n "$existing_pane_path" && "$existing_pane_path" == "$anchor_dir"* ]]; then
-        tmux setenv -t "$session" CODEX_ROOT "$anchor_dir" || true
-      else
-        session="${session}__$(short_hash "$anchor_dir")"
-      fi
-    elif [[ "$existing_root" != "$anchor_dir" ]]; then
-      session="${session}__$(short_hash "$anchor_dir")"
-    fi
+  if [[ "$use_here" != "true" && "$target_dir" == "$(realpath_of "$PWD")" ]]; then
+    anchor_dir="$DEFAULT_DIR"
   fi
 fi
 
-say "==> tmux layout"
-say "    Dir:  $anchor_dir"
-say "    tmux: $session"
+if [[ ! -d "$anchor_dir" ]]; then
+  die "Directory does not exist: $anchor_dir"
+fi
+
+if [[ "$reuse_tab" == "auto" ]]; then
+  if inside_wezterm; then
+    reuse_tab="true"
+  else
+    reuse_tab="false"
+  fi
+fi
 
 if [[ "$status" == "true" ]]; then
-  say ""
-  say "==> status"
-  say "    target_dir: $target_dir"
-  say "    anchor_dir: $anchor_dir"
-  say "    in_git_repo: $in_git_repo"
-  say "    mode:        $mode"
-  say "    attach_here: $attach_here"
-  say "    session:     $session"
-  say "    exists:      $(tmux has-session -t "$session" 2>/dev/null && echo yes || echo no)"
-  if tmux has-session -t "$session" 2>/dev/null; then
-    existing_root="$(tmux_getenv "$session" "CODEX_ROOT")"
-    say "    CODEX_ROOT:  ${existing_root:-?}"
-  fi
+  printf "target_dir=%s\n" "$target_dir"
+  printf "anchor_dir=%s\n" "$anchor_dir"
+  printf "mode=%s\n" "$mode"
+  printf "this_terminal=%s\n" "$this_terminal"
+  printf "reuse_tab=%s\n" "$reuse_tab"
+  printf "open_terminal=%s\n" "$open_terminal"
+  printf "terminal_app=%s\n" "wezterm"
   exit 0
 fi
 
-if [[ "$kill_session" == "true" ]]; then
-  if tmux has-session -t "$session" 2>/dev/null; then
-    say ""
-    say "==> Killing tmux session"
-    tmux kill-session -t "$session" || true
-  else
-    say ""
-    say "==> No tmux session to kill"
-  fi
+interactive_shell="${SHELL:-}"
+if [[ -z "${interactive_shell:-}" || ! -x "$interactive_shell" ]]; then
+  interactive_shell="$(command -v bash)"
+fi
+
+if [[ "$this_terminal" == "true" ]]; then
+  require_cmd bash
+  profile="$mode"
+  bash -lc 'cd "$1" && (swop codex -- -p "$2" || true); exec "$3" -l' bash "$anchor_dir" "$profile" "$interactive_shell"
   exit 0
 fi
 
-if [[ "$fresh_session" == "true" ]] && tmux has-session -t "$session" 2>/dev/null; then
-  say ""
-  say "==> Killing existing tmux session"
-  tmux kill-session -t "$session" || true
-fi
+require_cmd wezterm
 
-ensure_tmux_layout "$session" "$anchor_dir" "$run_setup" "$mode"
+title="$(repo_label_for "$anchor_dir")"
 
-if [[ "$attach_here" == "true" ]]; then
-  say ""
-  say "==> tmux attach"
-  if [[ -n "${TMUX:-}" ]]; then
-    tmux switch-client -t "$session"
-  else
-    tmux new -A -s "$session"
-  fi
+if [[ "$reuse_tab" == "true" ]]; then
+  [[ -n "${WEZTERM_PANE:-}" ]] || die "--reuse-tab requires running inside WezTerm"
+
+  case "$mode" in
+    codex)
+      reuse_current_pane "$WEZTERM_PANE" "codex" "$anchor_dir" "$interactive_shell"
+      set_tab_title "$WEZTERM_PANE" "$title"
+      ;;
+    standard)
+      reuse_current_pane "$WEZTERM_PANE" "standard" "$anchor_dir" "$interactive_shell"
+      set_tab_title "$WEZTERM_PANE" "$title"
+      ;;
+    both)
+      reuse_current_pane "$WEZTERM_PANE" "codex" "$anchor_dir" "$interactive_shell"
+      split_from_pane "$WEZTERM_PANE" "right" "standard" "$anchor_dir" "$interactive_shell"
+      set_tab_title "$WEZTERM_PANE" "$title"
+      ;;
+  esac
   exit 0
 fi
 
-if [[ "$open_wezterm" == "true" ]]; then
-  say ""
-  say "==> Opening WezTerm (tmux attach)"
-  open_wezterm_to_tmux_session "$session" "$anchor_dir"
-fi
+case "$mode" in
+  codex)
+    pane_id="$(spawn_new_container "codex" "$anchor_dir" "$interactive_shell" "$(inside_wezterm && printf true || printf false)")"
+    set_tab_title "$pane_id" "$title"
+    ;;
+  standard)
+    pane_id="$(spawn_new_container "standard" "$anchor_dir" "$interactive_shell" "$(inside_wezterm && printf true || printf false)")"
+    set_tab_title "$pane_id" "$title"
+    ;;
+  both)
+    pane_id="$(spawn_new_container "codex" "$anchor_dir" "$interactive_shell" "$(inside_wezterm && printf true || printf false)")"
+    split_from_pane "$pane_id" "right" "standard" "$anchor_dir" "$interactive_shell"
+    set_tab_title "$pane_id" "$title"
+    ;;
+esac

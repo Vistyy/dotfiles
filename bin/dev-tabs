@@ -23,9 +23,9 @@ set -euo pipefail
 #   -h, --help     Show help
 #
 # Note:
-# - The macOS variant (`macos/bin/dev-tabs`) supports tmux session reuse plus
-#   more cleanup-related flags. This WSL/Windows Terminal version always creates
-#   Windows Terminal panes/tabs (no tmux session reuse).
+# - The macOS variant (`macos/bin/dev-tabs`) uses native WezTerm tabs/panes with
+#   matching worktree/mode flags. This WSL/Windows Terminal version uses
+#   Windows Terminal panes/tabs.
 
 DEFAULT_DIR="$HOME/projects/budgeat"
 

@@ -7,8 +7,8 @@ print(os.path.realpath(sys.argv[1]))
 PY
 )"
 script_dir="$(cd "$(dirname "$script_path")" && pwd)"
-# shellcheck source=macos/bin/_worktree_tmux_lib.sh
-source "$script_dir/_worktree_tmux_lib.sh"
+# shellcheck source=macos/bin/_worktree_lib.sh
+source "$script_dir/_worktree_lib.sh"
 
 # Colors
 RED='\033[0;31m'
@@ -143,16 +143,6 @@ select_with_menu() {
   fi
 }
 
-kill_tmux_session_for_branch() {
-  local branch="$1"
-  local session
-  session="$(branch_to_session_name "$branch")"
-  if command -v tmux >/dev/null 2>&1 && tmux has-session -t "$session" 2>/dev/null; then
-    tmux kill-session -t "$session"
-    echo -e "    ${GREEN}✓${NC} tmux session killed (${session})"
-  fi
-}
-
 remove_worktree() {
   local branch="$1"
   local skip_confirm="${2:-false}"
@@ -191,8 +181,6 @@ remove_worktree() {
   fi
 
   echo ""
-  kill_tmux_session_for_branch "$branch"
-
   if [[ -d "$worktree_path" ]]; then
     git worktree remove "$worktree_path" --force
     echo -e "    ${GREEN}✓${NC} Worktree removed"
@@ -217,7 +205,7 @@ remove_worktree() {
 print_help() {
   echo "Usage: rm-worktree [OPTIONS] [BRANCH]"
   echo ""
-  echo "Remove git worktrees (and associated tmux session) interactively or by branch name."
+  echo "Remove git worktrees interactively or by branch name."
   echo ""
   echo "You can group short flags (that take no value), e.g. -lh"
   echo ""

@@ -6,7 +6,7 @@ Personal dotfiles and scripts.
 
 - **bin/** - Utility scripts
   - `dev-tabs` - Open development environment in terminal tabs
-  - `new-worktree` - Create git worktree with tmux session
+  - `new-worktree` - Create git worktree with setup helpers
   - `rm-worktree` - Remove git worktree and cleanup
 
 ## Install
@@ -23,7 +23,7 @@ Creates symlinks in `~/.local/bin`.
 ./macos/bin/bootstrap-terminal
 ```
 
-This installs terminal tools (Homebrew, WezTerm, tmux, Starship, etc) and links configs.
+This installs terminal tools (Homebrew, WezTerm, Starship, etc) and links configs.
 
 It links a zsh fragment into `~/.config/zsh/`, but does not touch your `~/.zshrc` unless you opt in:
 
@@ -38,4 +38,3 @@ Optional flags:
 - `--no-brew-update`
 - `--no-fonts`
 - `--fzf-shell`
-- `--tmux-plugins`

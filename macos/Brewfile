@@ -1,6 +1,5 @@
 cask "wezterm"
 brew "starship"
-brew "tmux"
 brew "fzf"
 brew "zoxide"
 brew "bat"

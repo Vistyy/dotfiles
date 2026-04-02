@@ -1,65 +1,43 @@
-Terminal cheatsheet (WezTerm + tmux)
+Terminal cheatsheet (WezTerm, native panes)
 
-WezTerm (macOS):
-  Cmd+Shift+h     Help (this screen)
-  Cmd+Shift+r     Reload WezTerm config (shows toast)
-  Cmd+Shift+t     New WezTerm tab (uses current cwd)
-  Ctrl+Cmd+f      Toggle fullscreen
+Core:
+  Cmd+d            Split current pane left/right
+  Cmd+Shift+d      Split current pane top/bottom
+  Cmd+w            Close current pane
+  Alt+Arrows       Move between panes
+  Cmd+Alt+Arrows   Resize current pane
+  Cmd+Enter        Zoom / unzoom current pane
 
-tmux-first shortcuts (via WezTerm; persistent across reattach):
-  Cmd+d           tmux split (left/right)
-  Cmd+Shift+d     tmux split (top/bottom)
-  Cmd+Alt+i/j/k/l Move between tmux panes (up/left/down/right)
-  Cmd+Alt+Arrows  Move between tmux panes
-  Cmd+t           tmux new window
-  Cmd+[           tmux previous window
-  Cmd+]           tmux next window
-  Cmd+w           tmux kill pane (no confirm) / else close WezTerm tab (confirm)
-  Cmd+Shift+w     tmux kill window (confirm) / else close WezTerm tab (confirm)
+Tabs:
+  Cmd+Shift+w      Close current tab
+  Cmd+t            New tab
+  Cmd+Shift+{/}    Previous/next tab
+  Cmd+Shift+,      Rename tab
 
-tmux essentials (works in any client: SSH/phone/WezTerm):
-  Prefix          Ctrl+b
-  Windows         Prefix+c (new), Prefix+n/p (next/prev), Prefix+w (list), Prefix+1..9 (jump)
-  Panes           Prefix+% (L/R split), Prefix+" (T/B split), Prefix+o (next pane), Prefix+arrows (move)
-  Panes (more)    Prefix+! (pane → new window), Prefix+z (zoom), Prefix+q (show numbers), Prefix+; (last pane)
-  Rearrange       Prefix+{ / } (swap), Prefix+Ctrl+o (rotate), Prefix+Space (cycle layout)
-  Move pane       Prefix+: join-pane -h/-v -s <src-pane> -t <dst-pane/window> (or swap-pane -s <a> -t <b>)
-  Kill            Prefix+x (kill pane, no confirm), Prefix+& (kill window, confirm)
-  Detach          Prefix+d
-  Panes (no prefix) Alt+i/j/k/l (up/left/down/right)
+Copy / search:
+  Cmd+c            Copy selection
+  Cmd+v            Paste
+  Cmd+f            Search scrollback
+  Cmd+Shift+x      Copy mode
+  Cmd+Shift+o      Quick-open URL from the screen
 
-WezTerm leader (Ctrl+a):
-  Ctrl+a then r          Reload config
-  Ctrl+a then [          Copy mode (scrollback selection)
-  Ctrl+a then /          Search scrollback
-  Ctrl+a then o          Quick-open URL from screen
-  Ctrl+a then w          Launcher (workspaces/tabs/domains)
-  Ctrl+a then ,          Rename tab
+Shell editing:
+  Cmd+Left/Right   Move to beginning/end of line
+  Opt+b / Opt+f    Move by word
+  Opt+Backspace    Delete previous word
+  Opt+d            Delete next word
+  Shift+Enter      Insert newline without running the command
 
-Help:
-  Ctrl+a then Shift+h    Help (this screen)
+Window / app:
+  Cmd+Shift+h      Open this cheatsheet
+  Cmd+Shift+r      Reload WezTerm config
+  Ctrl+Cmd+f       Toggle fullscreen
+  Cmd+Shift+0      Restore normal window level
+  Cmd+Shift+Up     Always on top
+  Cmd+Shift+Down   Always on bottom
 
-Reload (alternate):
-  Cmd+Alt+r              Reload WezTerm config (shows toast)
-
-Debug:
-  Cmd+Alt+D              Show debug overlay
-
-Multiline input:
-  Shift+Enter            Insert newline without running the command
-
-Line movement:
-  Cmd+Left/Right         Move to beginning/end of line
-
-Word movement / deletion:
-  Opt+Left/Right         Move by word
-  Opt+Backspace          Delete previous word
-  Opt+d                  Delete next word
-
-Tips:
-  Use tmux for session persistence (reattach after closing the app).
-
-Copy/paste:
-  In tmux copy-mode: Ctrl+c / y / Enter copies selection to macOS clipboard and exits copy-mode.
-  Tip: mouse drag-select selects in tmux; it does not auto-copy.
-  Cmd+v pastes (WezTerm paste).
+dev-tabs behavior:
+  `dev-tabs` opens a native WezTerm layout instead of attaching to tmux.
+  `dev-tabs --reuse-tab` reuses the current WezTerm tab when run inside WezTerm.
+  `dev-tabs --new-tab` opens a fresh tab in the current WezTerm window, or a new
+  window when run outside WezTerm.
