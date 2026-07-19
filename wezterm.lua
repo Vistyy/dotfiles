@@ -2,11 +2,37 @@ local wezterm = require 'wezterm'
 local act = wezterm.action
 
 local config = wezterm.config_builder()
+local is_windows = wezterm.target_triple:find('windows') ~= nil
+local is_macos = wezterm.target_triple:find('apple%-darwin') ~= nil
 
 -- The remote connection remains machine-local. This repository owns the
 -- terminal experience, while `tsh` owns how the dev box and Herdr are started.
-local remote_command = { 'powershell.exe', '-NoExit', '-Command', 'tsh' }
-local local_command = { 'powershell.exe', '-NoExit' }
+local remote_command
+local local_command
+local image_upload_command
+
+if is_windows then
+  remote_command = { 'powershell.exe', '-NoExit', '-Command', 'tsh' }
+  local_command = { 'powershell.exe', '-NoExit' }
+  image_upload_command = {
+    'powershell.exe',
+    '-NoProfile',
+    '-WindowStyle',
+    'Hidden',
+    '-File',
+    os.getenv('APPDATA') .. '\\wezterm\\clip2path.ps1',
+  }
+elseif is_macos then
+  -- `tsh` is defined by the interactive zsh setup on this machine. Keep a
+  -- local login shell available after the remote session ends, matching
+  -- PowerShell's -NoExit behavior on Windows.
+  remote_command = { '/bin/zsh', '-lic', 'tsh; exec /bin/zsh -l' }
+  local_command = { '/bin/zsh', '-l' }
+  image_upload_command = { wezterm.config_dir .. '/clip2path.sh' }
+else
+  remote_command = { '/bin/sh', '-l' }
+  local_command = remote_command
+end
 
 config.default_prog = remote_command
 
@@ -22,10 +48,13 @@ config.custom_block_glyphs = true
 config.default_cursor_style = 'SteadyBar'
 config.cursor_blink_rate = 0
 
--- Acrylic provides the Windows counterpart to the reference's macOS blur.
--- Slightly higher opacity keeps dense Herdr panes readable.
+-- Use each platform's native blur while keeping the same opacity.
 config.window_background_opacity = 0.88
-config.win32_system_backdrop = 'Acrylic'
+if is_windows then
+  config.win32_system_backdrop = 'Acrylic'
+elseif is_macos then
+  config.macos_window_background_blur = 28
+end
 config.window_decorations = 'TITLE|RESIZE'
 config.hide_tab_bar_if_only_one_tab = true
 
@@ -45,18 +74,20 @@ local copy_or_interrupt = wezterm.action_callback(function(window, pane)
   end
 end)
 
--- Upload a clipboard image with the persisted Windows helper, then paste the
+-- Upload a clipboard image with the installed platform helper, then paste the
 -- resulting dev-box path into the active terminal pane.
 local upload_clipboard_image = wezterm.action_callback(function(window, pane)
-  local script = os.getenv('APPDATA') .. '\\wezterm\\clip2path.ps1'
-  local success, _, stderr = wezterm.run_child_process {
-    'powershell.exe',
-    '-NoProfile',
-    '-WindowStyle',
-    'Hidden',
-    '-File',
-    script,
-  }
+  if not image_upload_command then
+    window:toast_notification(
+      'Screenshot upload unavailable',
+      'Clipboard image upload is supported on Windows and macOS.',
+      nil,
+      4000
+    )
+    return
+  end
+
+  local success, _, stderr = wezterm.run_child_process(image_upload_command)
 
   if success then
     window:perform_action(act.PasteFrom 'Clipboard', pane)
@@ -89,6 +120,25 @@ config.keys = {
   { key = '=', mods = 'CTRL', action = act.IncreaseFontSize },
   { key = '-', mods = 'CTRL', action = act.DecreaseFontSize },
 }
+
+-- Retain the identical cross-platform bindings above while also honoring the
+-- standard macOS Command-key equivalents.
+if is_macos then
+  local macos_keys = {
+    { key = 'c', mods = 'CMD', action = act.CopyTo 'Clipboard' },
+    { key = 'v', mods = 'CMD', action = act.PasteFrom 'Clipboard' },
+    { key = 'f', mods = 'CMD', action = act.Search 'CurrentSelectionOrEmptyString' },
+    { key = 't', mods = 'CMD', action = act.SpawnCommandInNewTab { args = remote_command } },
+    { key = 'w', mods = 'CMD', action = act.CloseCurrentTab { confirm = true } },
+    { key = '0', mods = 'CMD', action = act.ResetFontSize },
+    { key = '=', mods = 'CMD', action = act.IncreaseFontSize },
+    { key = '-', mods = 'CMD', action = act.DecreaseFontSize },
+  }
+
+  for _, binding in ipairs(macos_keys) do
+    table.insert(config.keys, binding)
+  end
+end
 
 config.mouse_bindings = {
   {
