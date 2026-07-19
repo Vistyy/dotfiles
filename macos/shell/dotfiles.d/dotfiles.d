@@ -1,1 +1,0 @@
-/Users/syzom/projects/dotfiles/macos/shell/dotfiles.d
