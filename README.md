@@ -1,20 +1,22 @@
-# Windows dotfiles
+# Cross-platform dotfiles
 
-Personal Windows configuration with reproducible WezTerm and AutoHotkey setup.
+Personal Windows and macOS configuration with a reproducible WezTerm setup and
+Windows AutoHotkey automation.
 The repository is private because some helpers contain machine-specific hostnames.
 
 The visual direction adapts
 [kunchenguid's dotfiles](https://github.com/kunchenguid/dotfiles): Rose Pine
 Moon, Hack Nerd Font, subtle transparency, and very little terminal chrome.
-The Windows version uses Acrylic at slightly higher opacity to keep dense Herdr
-layouts legible.
+Windows uses Acrylic and macOS uses native background blur at the same opacity
+to keep dense Herdr layouts legible.
 
 ## Repository boundary
 
 This repository owns local terminal configuration, its clipboard-image helper,
 and small keyboard automations. It deliberately does not duplicate Tailscale,
 the DevBox, Herdr, or the remote shell configuration. On Windows, it expects the
-existing PowerShell function `tsh` to connect to the DevBox and start Herdr.
+existing PowerShell function `tsh`; on macOS, it expects the equivalent
+interactive zsh alias.
 
 ## Windows installation
 
@@ -38,6 +40,30 @@ The installer:
 
 Use `-SkipFontInstall` only when Hack Nerd Font is already managed separately.
 
+## macOS installation
+
+Clone the repository and run this from a terminal:
+
+```sh
+./install/macos.sh
+```
+
+The installer:
+
+1. Backs up an existing WezTerm config and clipboard helper under
+   `$HOME/.wezterm-backup/<timestamp>`.
+2. Installs Hack Nerd Font Mono for the current macOS user when needed.
+3. Copies `wezterm.lua` and the native clipboard-image helper to
+   `$HOME/.config/wezterm`.
+
+The macOS launcher loads interactive zsh so the existing `tsh` alias is
+available. The image helper uses the built-in macOS pasteboard API, `ssh`, and
+`scp`; it does not require `pngpaste` or another Homebrew package. macOS does
+not install the Windows-only AutoHotkey automation.
+
+Use `--skip-font-install` only when Hack Nerd Font is already managed
+separately.
+
 ## Key bindings
 
 | Keys | Action |
@@ -54,6 +80,8 @@ Use `-SkipFontInstall` only when Hack Nerd Font is already managed separately.
 | `Alt+Enter` | Toggle full screen |
 
 `Ctrl+C` copies when text is selected; otherwise it sends an interrupt.
+The same bindings work on both platforms. macOS additionally supports the
+standard `Cmd+C`, `Cmd+V`, `Cmd+F`, `Cmd+T`, `Cmd+W`, and font-size shortcuts.
 
 ## AutoHotkey
 
@@ -71,6 +99,8 @@ avoid installing a second keyboard hook for the same remap.
 
 - `wezterm.lua`: terminal behavior and presentation.
 - `windows/clip2path.ps1`: clipboard-image uploader used by `Ctrl+Alt+V`.
+- `macos/clip2path.sh`: native macOS clipboard-image uploader.
 - `windows/autohotkey/switch-same-app.ahk`: app-window cycling and OEM-key remap.
 - `install/windows.ps1`: idempotent Windows installation and migration.
+- `install/macos.sh`: idempotent macOS installation.
 - `legacy/windows-terminal/clip2path.ahk`: retired Windows Terminal wrapper.
