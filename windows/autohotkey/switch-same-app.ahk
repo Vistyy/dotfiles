@@ -1,16 +1,30 @@
 ﻿#Requires AutoHotkey v2.0
 #SingleInstance Force
 
-; Replace PowerToys' OEM-102 -> backtick remap in the same keyboard hook.
-SC056::SC029
+; Type backtick/tilde without AutoHotkey's built-in key-remap machinery.
+; SendText does not release and reapply held modifiers.
+SC056::SendText "``"
++SC056::SendText "~"
 
-; Use Left Alt only so Polish AltGr (Left Ctrl + Right Alt) cannot trigger these.
-<!`::
+; Bind directly to the physical OEM-102 key and Left Alt only.
+; Polish AltGr (Left Ctrl + Right Alt) cannot match these hotkeys.
+<!SC056::
 {
     CycleCurrentAppWindows()
 }
 
-<!+`::
+<!+SC056::
+{
+    CycleCurrentAppWindows("R")
+}
+
+; Also support keyboards with a dedicated physical backtick key.
+<!SC029::
+{
+    CycleCurrentAppWindows()
+}
+
+<!+SC029::
 {
     CycleCurrentAppWindows("R")
 }

@@ -89,18 +89,20 @@ standard `Cmd+C`, `Cmd+V`, `Cmd+F`, `Cmd+T`, `Cmd+W`, and font-size shortcuts.
 
 - `Left Alt` + backtick to cycle forward through windows of the active app.
 - `Left Alt` + `Shift` + backtick to cycle backward.
-- The ISO/OEM-102 to backtick remap previously handled by PowerToys.
+- Modifier-safe backtick and tilde text input from the ISO/OEM-102 key.
 
 The shortcuts intentionally use Left Alt so Polish AltGr (`Left Ctrl` +
-`Right Alt`) cannot trigger them. Keep PowerToys Keyboard Manager disabled to
-avoid installing a second keyboard hook for the same remap.
+`Right Alt`) cannot trigger them. The script deliberately avoids AutoHotkey's
+built-in key-remap syntax because it releases and reapplies held modifiers.
+Keep PowerToys Keyboard Manager disabled to avoid a second keyboard hook.
 
 ## Files
 
 - `wezterm.lua`: terminal behavior and presentation.
 - `windows/clip2path.ps1`: clipboard-image uploader used by `Ctrl+Alt+V`.
 - `macos/clip2path.sh`: native macOS clipboard-image uploader.
-- `windows/autohotkey/switch-same-app.ahk`: app-window cycling and OEM-key remap.
+- `windows/autohotkey/switch-same-app.ahk`: app-window cycling and modifier-safe
+  OEM-key text input.
 - `install/windows.ps1`: idempotent Windows installation and migration.
 - `install/macos.sh`: idempotent macOS installation.
 - `legacy/windows-terminal/clip2path.ahk`: retired Windows Terminal wrapper.
