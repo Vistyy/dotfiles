@@ -89,11 +89,11 @@ standard `Cmd+C`, `Cmd+V`, `Cmd+F`, `Cmd+T`, `Cmd+W`, and font-size shortcuts.
 
 - `Left Alt` + backtick to cycle forward through windows of the active app.
 - `Left Alt` + `Shift` + backtick to cycle backward.
-- Modifier-safe backtick and tilde text input from the ISO/OEM-102 key.
+- A modifier-transparent ISO/OEM-102 remap to the physical backtick key.
 
 The shortcuts intentionally use Left Alt so Polish AltGr (`Left Ctrl` +
-`Right Alt`) cannot trigger them. The script deliberately avoids AutoHotkey's
-built-in key-remap syntax because it releases and reapplies held modifiers.
+`Right Alt`) cannot trigger them. The native key remap preserves any held
+modifiers.
 Keep PowerToys Keyboard Manager disabled to avoid a second keyboard hook.
 
 ## Files

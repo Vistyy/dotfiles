@@ -1,10 +1,10 @@
 ﻿#Requires AutoHotkey v2.0
 #SingleInstance Force
 
-; Type backtick/tilde without AutoHotkey's built-in key-remap machinery.
-; SendText does not release and reapply held modifiers.
-SC056::SendText "``"
-+SC056::SendText "~"
+; Make the ISO/OEM-102 key behave exactly like the physical backtick key.
+; A native remap forwards all held modifiers, so Ctrl+ISO is Ctrl+backtick,
+; and the same remains true for Alt, Shift, Win, or combinations of them.
+SC056::SC029
 
 ; Bind directly to the physical OEM-102 key and Left Alt only.
 ; Polish AltGr (Left Ctrl + Right Alt) cannot match these hotkeys.

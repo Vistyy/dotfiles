@@ -142,6 +142,18 @@ end
 
 config.mouse_bindings = {
   {
+    event = { Up = { streak = 1, button = 'Left' } },
+    mods = 'CTRL',
+    mouse_reporting = true,
+    action = act.OpenLinkAtMouseCursor,
+  },
+  {
+    event = { Down = { streak = 1, button = 'Left' } },
+    mods = 'CTRL',
+    mouse_reporting = true,
+    action = act.Nop,
+  },
+  {
     event = { Down = { streak = 1, button = 'Right' } },
     mods = 'NONE',
     action = act.PasteFrom 'Clipboard',
