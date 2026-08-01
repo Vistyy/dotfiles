@@ -115,7 +115,7 @@ config.keys = {
 
   { key = 'l', mods = 'CTRL|SHIFT', action = act.SpawnCommandInNewTab { args = local_command } },
   { key = 'r', mods = 'CTRL|SHIFT', action = act.ReloadConfiguration },
-  { key = 'Enter', mods = 'ALT', action = act.ToggleFullScreen },
+  { key = 'Enter', mods = 'ALT', action = act.DisableDefaultAssignment },
   { key = '0', mods = 'CTRL', action = act.ResetFontSize },
   { key = '=', mods = 'CTRL', action = act.IncreaseFontSize },
   { key = '-', mods = 'CTRL', action = act.DecreaseFontSize },
