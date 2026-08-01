@@ -77,7 +77,7 @@ separately.
 | `Ctrl+Alt+V` | Upload a clipboard image and paste its DevBox path |
 | `Ctrl+Shift+F` | Search scrollback |
 | `Ctrl+Shift+R` | Reload configuration |
-| `Alt+Enter` | Toggle full screen |
+| `Alt+Enter` | Pass through to terminal apps (WezTerm full screen disabled) |
 
 `Ctrl+C` copies when text is selected; otherwise it sends an interrupt.
 The same bindings work on both platforms. macOS additionally supports the
