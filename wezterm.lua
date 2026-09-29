@@ -5,15 +5,23 @@ local config = wezterm.config_builder()
 local is_windows = wezterm.target_triple:find('windows') ~= nil
 local is_macos = wezterm.target_triple:find('apple%-darwin') ~= nil
 
--- The remote connection remains machine-local. This repository owns the
--- terminal experience, while `tsh` owns how the dev box and Herdr are started.
+-- Windows uses native SSH for the Herdr transport A/B test; macOS keeps `tsh`.
 local remote_command
 local local_command
 local image_upload_command
 
 if is_windows then
-  remote_command = { 'powershell.exe', '-NoExit', '-Command', 'tsh' }
   local_command = { 'powershell.exe', '-NoExit' }
+  config.ssh_domains = {
+    {
+      name = 'devbox',
+      remote_address = 'devbox',
+      username = 'syzom',
+      multiplexing = 'None',
+      default_prog = { 'bash', '-lc', 'herdr; exec fish -l' },
+    },
+  }
+  config.default_domain = 'devbox'
   image_upload_command = {
     'powershell.exe',
     '-NoProfile',
@@ -34,7 +42,14 @@ else
   local_command = remote_command
 end
 
-config.default_prog = remote_command
+config.default_prog = is_windows and local_command or remote_command
+
+local remote_tab = is_windows
+  and { domain = { DomainName = 'devbox' } }
+  or { args = remote_command }
+local local_tab = is_windows
+  and { domain = { DomainName = 'local' }, args = local_command }
+  or { args = local_command }
 
 -- A Windows adaptation of kunchenguid's restrained Rose Pine setup.
 config.color_scheme = 'rose-pine-moon'
@@ -108,12 +123,12 @@ config.keys = {
   { key = 'Enter', mods = 'SHIFT', action = act.SendString '\x0a' },
   { key = 'v', mods = 'CTRL|ALT', action = upload_clipboard_image },
 
-  { key = 't', mods = 'CTRL', action = act.SpawnCommandInNewTab { args = remote_command } },
+  { key = 't', mods = 'CTRL', action = act.SpawnCommandInNewTab(remote_tab) },
   { key = 'w', mods = 'CTRL', action = act.CloseCurrentTab { confirm = true } },
   { key = 'Tab', mods = 'CTRL', action = act.ActivateTabRelative(1) },
   { key = 'Tab', mods = 'CTRL|SHIFT', action = act.ActivateTabRelative(-1) },
 
-  { key = 'l', mods = 'CTRL|SHIFT', action = act.SpawnCommandInNewTab { args = local_command } },
+  { key = 'l', mods = 'CTRL|SHIFT', action = act.SpawnCommandInNewTab(local_tab) },
   { key = 'r', mods = 'CTRL|SHIFT', action = act.ReloadConfiguration },
   { key = 'Enter', mods = 'ALT', action = act.DisableDefaultAssignment },
   { key = '0', mods = 'CTRL', action = act.ResetFontSize },
