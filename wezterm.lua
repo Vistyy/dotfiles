@@ -81,6 +81,7 @@ config.adjust_window_size_when_changing_font_size = false
 config.switch_to_last_active_tab_when_closing_tab = true
 -- Keep disconnected sessions open; Ctrl+T starts a fresh connection.
 config.exit_behavior = 'Hold'
+config.window_close_confirmation = 'NeverPrompt'
 
 -- Copy selected text with Ctrl+C; otherwise preserve the normal interrupt.
 local copy_or_interrupt = wezterm.action_callback(function(window, pane)
@@ -126,7 +127,8 @@ config.keys = {
   { key = 'v', mods = 'CTRL|ALT', action = upload_clipboard_image },
 
   { key = 't', mods = 'CTRL', action = act.SpawnCommandInNewTab(remote_tab) },
-  { key = 'w', mods = 'CTRL', action = act.CloseCurrentTab { confirm = true } },
+  { key = 'w', mods = 'CTRL', action = act.CloseCurrentTab { confirm = false } },
+  { key = 'w', mods = 'CTRL|SHIFT', action = act.CloseCurrentTab { confirm = false } },
   { key = 'Tab', mods = 'CTRL', action = act.ActivateTabRelative(1) },
   { key = 'Tab', mods = 'CTRL|SHIFT', action = act.ActivateTabRelative(-1) },
 
@@ -146,7 +148,7 @@ if is_macos then
     { key = 'v', mods = 'CMD', action = act.PasteFrom 'Clipboard' },
     { key = 'f', mods = 'CMD', action = act.Search 'CurrentSelectionOrEmptyString' },
     { key = 't', mods = 'CMD', action = act.SpawnCommandInNewTab { args = remote_command } },
-    { key = 'w', mods = 'CMD', action = act.CloseCurrentTab { confirm = true } },
+    { key = 'w', mods = 'CMD', action = act.CloseCurrentTab { confirm = false } },
     { key = '0', mods = 'CMD', action = act.ResetFontSize },
     { key = '=', mods = 'CMD', action = act.IncreaseFontSize },
     { key = '-', mods = 'CMD', action = act.DecreaseFontSize },
