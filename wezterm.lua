@@ -79,6 +79,8 @@ config.enable_scroll_bar = false
 config.audible_bell = 'Disabled'
 config.adjust_window_size_when_changing_font_size = false
 config.switch_to_last_active_tab_when_closing_tab = true
+-- Keep disconnected sessions open; Ctrl+T starts a fresh connection.
+config.exit_behavior = 'Hold'
 
 -- Copy selected text with Ctrl+C; otherwise preserve the normal interrupt.
 local copy_or_interrupt = wezterm.action_callback(function(window, pane)
